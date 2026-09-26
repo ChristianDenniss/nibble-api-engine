@@ -11,16 +11,18 @@ import (
 
 	"github.com/ChristianDenniss/api-engine/internal/compare"
 	"github.com/ChristianDenniss/api-engine/internal/grpcingest"
-	"github.com/ChristianDenniss/api-engine/internal/storefront"
 	grpcingestv2 "github.com/ChristianDenniss/api-engine/internal/grpcingest/v2"
 	"github.com/ChristianDenniss/api-engine/internal/health"
 	"github.com/ChristianDenniss/api-engine/internal/httpx"
+	"github.com/ChristianDenniss/api-engine/internal/sourcemenu"
+	"github.com/ChristianDenniss/api-engine/internal/storefront"
 	brandsvc "github.com/ChristianDenniss/go-data-model/brand/service"
 	channelsvc "github.com/ChristianDenniss/go-data-model/channel/service"
 	comparesvc "github.com/ChristianDenniss/go-data-model/compare/service"
 	dishsvc "github.com/ChristianDenniss/go-data-model/dish/service"
 	ingestsvc "github.com/ChristianDenniss/go-data-model/ingest/service"
 	itempricesvc "github.com/ChristianDenniss/go-data-model/itemprice/service"
+	marketsvc "github.com/ChristianDenniss/go-data-model/market/service"
 	menusvc "github.com/ChristianDenniss/go-data-model/menu/service"
 	obssvc "github.com/ChristianDenniss/go-data-model/observation/service"
 	offersvc "github.com/ChristianDenniss/go-data-model/offer/service"
@@ -29,9 +31,9 @@ import (
 	quoteobssvc "github.com/ChristianDenniss/go-data-model/quoteobs/service"
 	resolutionsvc "github.com/ChristianDenniss/go-data-model/resolution/service"
 	restaurantsvc "github.com/ChristianDenniss/go-data-model/restaurant/service"
-	storefrontsvc "github.com/ChristianDenniss/go-data-model/storefront/service"
-	sourcesvc "github.com/ChristianDenniss/go-data-model/source/service"
 	serviceabilitysvc "github.com/ChristianDenniss/go-data-model/serviceability/service"
+	sourcesvc "github.com/ChristianDenniss/go-data-model/source/service"
+	storefrontsvc "github.com/ChristianDenniss/go-data-model/storefront/service"
 	usersvc "github.com/ChristianDenniss/go-data-model/user/service"
 	"github.com/ChristianDenniss/go-data-store"
 	ingestv1 "github.com/ChristianDenniss/platform-contracts/gen/ingest/v1"
@@ -71,6 +73,7 @@ func main() {
 		postgres.NewSourceMenuRepository(db),
 		postgres.NewSourceCategoryRepository(db),
 		postgres.NewSourceItemRepository(db),
+		postgres.NewSourceBrowseRepository(db),
 	)
 	brandSvc := brandsvc.New(postgres.NewBrandRepository(db))
 	placeSvc := placesvc.New(postgres.NewPlaceRepository(db), postgres.NewPurchaseOptionRepository(db))
@@ -82,7 +85,12 @@ func main() {
 	)
 	itemPriceSvc := itempricesvc.New(postgres.NewItemPriceObservationRepository(db))
 	quoteObsSvc := quoteobssvc.New(postgres.NewQuoteObservationRepository(db))
-	_ = promotionsvc.New(postgres.NewPromotionRepository(db), postgres.NewMembershipProductRepository(db))
+	promoSvc := promotionsvc.New(postgres.NewPromotionRepository(db), postgres.NewMembershipProductRepository(db))
+	marketSvc := marketsvc.New(
+		postgres.NewMarketRepository(db),
+		postgres.NewProbeDropoffRepository(db),
+		postgres.NewChannelCoverageRepository(db),
+	)
 	serviceabilitySvc := serviceabilitysvc.New(
 		postgres.NewSourceStoreStatusRepository(db),
 		postgres.NewServiceAreaRepository(db),
@@ -98,6 +106,7 @@ func main() {
 	healthController := health.NewController(health.NewService(db))
 	compareController := compare.NewController(compareSvc, userSvc)
 	storefrontController := storefront.NewController(storefrontsvc.New(postgres.NewStorefrontRepository(db)))
+	sourceMenuController := sourcemenu.NewController(sourceSvc)
 	log.Printf("domains: legacy ingest + target catalog/pricing/compare wired")
 
 	lis, err := net.Listen("tcp", grpcAddr)
@@ -109,7 +118,7 @@ func main() {
 		restaurantSvc, menuSvc, offerSvc, observationSvc,
 	))
 	ingestv2.RegisterIngestServiceServer(grpcServer, grpcingestv2.NewServer(
-		channelSvc, ingestDomainSvc, sourceSvc, brandSvc, dishSvc, placeSvc, resolutionSvc, itemPriceSvc, quoteObsSvc,
+		channelSvc, ingestDomainSvc, sourceSvc, brandSvc, dishSvc, placeSvc, resolutionSvc, itemPriceSvc, quoteObsSvc, marketSvc, promoSvc,
 	))
 	go func() {
 		log.Printf("grpc ingest listening on %s (v1 + v2)", grpcAddr)
@@ -122,6 +131,7 @@ func main() {
 	health.Mount(mux, healthController)
 	compare.Mount(mux, compareController)
 	storefront.Mount(mux, storefrontController)
+	sourcemenu.Mount(mux, sourceMenuController)
 	httpServer := &http.Server{Addr: httpAddr, Handler: httpx.Wrap(mux)}
 	go func() {
 		log.Printf("http listening on %s", httpAddr)
