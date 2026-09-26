@@ -4,8 +4,8 @@ go 1.23
 
 require (
 	github.com/ChristianDenniss/go-data-model v1.0.0
+	github.com/ChristianDenniss/go-data-store v1.0.0
 	github.com/ChristianDenniss/platform-contracts v1.0.0
-	github.com/jackc/pgx/v5 v5.7.2
 	google.golang.org/grpc v1.68.1
 )
 

@@ -4,19 +4,22 @@ import (
 	"context"
 
 	"github.com/ChristianDenniss/api-engine/internal/apperror"
-	"github.com/ChristianDenniss/api-engine/internal/store"
 )
 
-type Service struct {
-	store *store.Store
+type Pinger interface {
+	Ping(ctx context.Context) error
 }
 
-func NewService(s *store.Store) *Service {
-	return &Service{store: s}
+type Service struct {
+	db Pinger
+}
+
+func NewService(db Pinger) *Service {
+	return &Service{db: db}
 }
 
 func (s *Service) Check(ctx context.Context) error {
-	if err := s.store.Ping(ctx); err != nil {
+	if err := s.db.Ping(ctx); err != nil {
 		return apperror.Unavailable("database unavailable")
 	}
 	return nil

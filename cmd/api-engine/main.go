@@ -9,10 +9,14 @@ import (
 	"os/signal"
 	"syscall"
 
+	"github.com/ChristianDenniss/api-engine/internal/grpcingest"
+	"github.com/ChristianDenniss/api-engine/internal/health"
 	"github.com/ChristianDenniss/api-engine/internal/httpx"
-	"github.com/ChristianDenniss/api-engine/internal/modules/health"
-	"github.com/ChristianDenniss/api-engine/internal/modules/ingest"
-	"github.com/ChristianDenniss/api-engine/internal/store"
+	menusvc "github.com/ChristianDenniss/go-data-model/menu/service"
+	obssvc "github.com/ChristianDenniss/go-data-model/observation/service"
+	offersvc "github.com/ChristianDenniss/go-data-model/offer/service"
+	restaurantsvc "github.com/ChristianDenniss/go-data-model/restaurant/service"
+	"github.com/ChristianDenniss/go-data-store"
 	ingestv1 "github.com/ChristianDenniss/platform-contracts/gen/ingest/v1"
 	"google.golang.org/grpc"
 )
@@ -28,24 +32,29 @@ func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
-	st, err := store.Open(ctx, databaseURL)
+	db, err := postgres.Open(ctx, databaseURL)
 	if err != nil {
-		log.Fatalf("store: %v", err)
+		log.Fatalf("postgres: %v", err)
 	}
-	defer st.Close()
-	log.Printf("store: ready")
+	defer db.Close()
+	log.Printf("postgres: ready")
 
-	healthSvc := health.NewService(st)
-	healthController := health.NewController(healthSvc)
-	ingestSvc := ingest.NewService(st)
-	log.Printf("modules: health + ingest wired")
+	restaurantSvc := restaurantsvc.New(postgres.NewRestaurantRepository(db))
+	menuSvc := menusvc.New(postgres.NewMenuRepository(db))
+	offerSvc := offersvc.New(postgres.NewOfferRepository(db))
+	observationSvc := obssvc.New(postgres.NewObservationRepository(db))
+
+	healthController := health.NewController(health.NewService(db))
+	log.Printf("domains: restaurant, menu, offer, observation wired")
 
 	lis, err := net.Listen("tcp", grpcAddr)
 	if err != nil {
 		log.Fatalf("grpc listen: %v", err)
 	}
 	grpcServer := grpc.NewServer()
-	ingestv1.RegisterIngestServiceServer(grpcServer, ingest.NewServer(ingestSvc))
+	ingestv1.RegisterIngestServiceServer(grpcServer, grpcingest.NewServer(
+		restaurantSvc, menuSvc, offerSvc, observationSvc,
+	))
 	go func() {
 		log.Printf("grpc ingest listening on %s", grpcAddr)
 		if err := grpcServer.Serve(lis); err != nil {
