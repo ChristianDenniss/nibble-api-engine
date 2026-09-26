@@ -11,6 +11,7 @@ import (
 
 	"github.com/ChristianDenniss/api-engine/internal/compare"
 	"github.com/ChristianDenniss/api-engine/internal/grpcingest"
+	"github.com/ChristianDenniss/api-engine/internal/storefront"
 	grpcingestv2 "github.com/ChristianDenniss/api-engine/internal/grpcingest/v2"
 	"github.com/ChristianDenniss/api-engine/internal/health"
 	"github.com/ChristianDenniss/api-engine/internal/httpx"
@@ -28,6 +29,7 @@ import (
 	quoteobssvc "github.com/ChristianDenniss/go-data-model/quoteobs/service"
 	resolutionsvc "github.com/ChristianDenniss/go-data-model/resolution/service"
 	restaurantsvc "github.com/ChristianDenniss/go-data-model/restaurant/service"
+	storefrontsvc "github.com/ChristianDenniss/go-data-model/storefront/service"
 	sourcesvc "github.com/ChristianDenniss/go-data-model/source/service"
 	serviceabilitysvc "github.com/ChristianDenniss/go-data-model/serviceability/service"
 	usersvc "github.com/ChristianDenniss/go-data-model/user/service"
@@ -95,6 +97,7 @@ func main() {
 
 	healthController := health.NewController(health.NewService(db))
 	compareController := compare.NewController(compareSvc, userSvc)
+	storefrontController := storefront.NewController(storefrontsvc.New(postgres.NewStorefrontRepository(db)))
 	log.Printf("domains: legacy ingest + target catalog/pricing/compare wired")
 
 	lis, err := net.Listen("tcp", grpcAddr)
@@ -118,6 +121,7 @@ func main() {
 	mux := http.NewServeMux()
 	health.Mount(mux, healthController)
 	compare.Mount(mux, compareController)
+	storefront.Mount(mux, storefrontController)
 	httpServer := &http.Server{Addr: httpAddr, Handler: httpx.Wrap(mux)}
 	go func() {
 		log.Printf("http listening on %s", httpAddr)
