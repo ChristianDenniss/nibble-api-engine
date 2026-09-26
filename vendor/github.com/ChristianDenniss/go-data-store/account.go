@@ -74,6 +74,83 @@ func (r *AccountRepository) GetByID(ctx context.Context, id string) (entity.Acco
 	return out, payRows.Err()
 }
 
+func (r *AccountRepository) DeleteSavedAddress(ctx context.Context, accountID, addressID string) error {
+	tx, err := r.db.sql.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = tx.Rollback() }()
+
+	var wasCurrent bool
+	err = tx.QueryRowContext(ctx, `
+		SELECT current FROM saved_addresses WHERE account_id = $1 AND id = $2`,
+		accountID, addressID).Scan(&wasCurrent)
+	if errors.Is(err, sql.ErrNoRows) {
+		return entity.ErrAddressNotFound
+	}
+	if err != nil {
+		return err
+	}
+
+	res, err := tx.ExecContext(ctx, `
+		DELETE FROM saved_addresses WHERE account_id = $1 AND id = $2`,
+		accountID, addressID)
+	if err != nil {
+		return err
+	}
+	if n, _ := res.RowsAffected(); n == 0 {
+		return entity.ErrAddressNotFound
+	}
+
+	if wasCurrent {
+		var nextID string
+		err = tx.QueryRowContext(ctx, `
+			SELECT id FROM saved_addresses WHERE account_id = $1 ORDER BY label LIMIT 1`,
+			accountID).Scan(&nextID)
+		if errors.Is(err, sql.ErrNoRows) {
+			/* no addresses left */
+		} else if err != nil {
+			return err
+		} else if _, err := tx.ExecContext(ctx, `
+			UPDATE saved_addresses SET current = true WHERE account_id = $1 AND id = $2`,
+			accountID, nextID); err != nil {
+			return err
+		}
+	}
+
+	return tx.Commit()
+}
+
+func (r *AccountRepository) SetCurrentSavedAddress(ctx context.Context, accountID, addressID string) error {
+	tx, err := r.db.sql.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = tx.Rollback() }()
+
+	var dummy int
+	err = tx.QueryRowContext(ctx, `
+		SELECT 1 FROM saved_addresses WHERE account_id = $1 AND id = $2`,
+		accountID, addressID).Scan(&dummy)
+	if errors.Is(err, sql.ErrNoRows) {
+		return entity.ErrAddressNotFound
+	}
+	if err != nil {
+		return err
+	}
+
+	if _, err := tx.ExecContext(ctx, `
+		UPDATE saved_addresses SET current = false WHERE account_id = $1`, accountID); err != nil {
+		return err
+	}
+	if _, err := tx.ExecContext(ctx, `
+		UPDATE saved_addresses SET current = true WHERE account_id = $1 AND id = $2`,
+		accountID, addressID); err != nil {
+		return err
+	}
+	return tx.Commit()
+}
+
 func (r *AccountRepository) Upsert(ctx context.Context, in entity.Account) error {
 	tx, err := r.db.sql.BeginTx(ctx, nil)
 	if err != nil {

@@ -37,6 +37,26 @@ func (r *SourceStoreRepository) GetByID(ctx context.Context, id string) (entity.
 	return out, err
 }
 
+func (r *SourceStoreRepository) ListByChannel(ctx context.Context, channelID string) ([]entity.Store, error) {
+	rows, err := r.db.sql.QueryContext(ctx, `
+		SELECT id, channel_id, external_store_id, name, latitude, longitude, address, phone
+		FROM source_stores WHERE channel_id = $1 ORDER BY name`, channelID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []entity.Store
+	for rows.Next() {
+		var st entity.Store
+		if err := rows.Scan(&st.ID, &st.ChannelID, &st.ExternalStoreID, &st.Name,
+			&st.Location.Latitude, &st.Location.Longitude, &st.Location.Address, &st.Phone); err != nil {
+			return nil, err
+		}
+		out = append(out, st)
+	}
+	return out, rows.Err()
+}
+
 func (r *SourceStoreRepository) GetByChannelExternal(ctx context.Context, channelID, externalStoreID string) (entity.Store, error) {
 	var out entity.Store
 	err := r.db.sql.QueryRowContext(ctx, `
