@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"fmt"
 	"io/fs"
+	"log"
 	"sort"
 	"time"
 
@@ -18,6 +19,7 @@ type Store struct {
 }
 
 func Open(ctx context.Context, databaseURL string) (*Store, error) {
+	log.Printf("store: opening postgres")
 	db, err := sql.Open("pgx", databaseURL)
 	if err != nil {
 		return nil, err
@@ -25,7 +27,9 @@ func Open(ctx context.Context, databaseURL string) (*Store, error) {
 
 	var lastErr error
 	for i := 0; i < 30; i++ {
+		log.Printf("store: ping postgres (attempt %d/30)", i+1)
 		if err := db.PingContext(ctx); err == nil {
+			log.Printf("store: postgres reachable")
 			s := &Store{db: db}
 			if err := s.migrate(ctx); err != nil {
 				_ = db.Close()
@@ -34,6 +38,7 @@ func Open(ctx context.Context, databaseURL string) (*Store, error) {
 			return s, nil
 		} else {
 			lastErr = err
+			log.Printf("store: ping failed: %v", err)
 			time.Sleep(time.Second)
 		}
 	}
@@ -42,7 +47,12 @@ func Open(ctx context.Context, databaseURL string) (*Store, error) {
 }
 
 func (s *Store) Close() error {
+	log.Printf("store: closing postgres")
 	return s.db.Close()
+}
+
+func (s *Store) Ping(ctx context.Context) error {
+	return s.db.PingContext(ctx)
 }
 
 func (s *Store) migrate(ctx context.Context) error {
@@ -54,15 +64,20 @@ func (s *Store) migrate(ctx context.Context) error {
 	if len(files) == 0 {
 		return fmt.Errorf("migrations: no sql files embedded")
 	}
+	log.Printf("store: applying %d migration file(s)", len(files))
 	for _, name := range files {
+		log.Printf("store: migration %s starting", name)
 		sqlBytes, err := fs.ReadFile(migrations.FS, name)
 		if err != nil {
 			return err
 		}
 		if _, err := s.db.ExecContext(ctx, string(sqlBytes)); err != nil {
+			log.Printf("store: migration %s failed: %v", name, err)
 			return fmt.Errorf("migration %s: %w", name, err)
 		}
+		log.Printf("store: migration %s ok", name)
 	}
+	log.Printf("store: migrations complete")
 	return nil
 }
 

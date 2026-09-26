@@ -2,9 +2,9 @@ package ingest
 
 import (
 	"context"
+	"errors"
 	"time"
 
-	"github.com/ChristianDenniss/api-engine/internal/store"
 	model "github.com/ChristianDenniss/go-data-model"
 	ingestv1 "github.com/ChristianDenniss/platform-contracts/gen/ingest/v1"
 	"google.golang.org/grpc/codes"
@@ -13,20 +13,33 @@ import (
 
 type Server struct {
 	ingestv1.UnimplementedIngestServiceServer
-	store *store.Store
+	svc *Service
 }
 
-func NewServer(s *store.Store) *Server {
-	return &Server{store: s}
+func NewServer(svc *Service) *Server {
+	return &Server{svc: svc}
+}
+
+func mapError(err error) error {
+	if err == nil {
+		return nil
+	}
+	if errors.Is(err, ErrRestaurantIDRequired) ||
+		errors.Is(err, ErrMenuItemIDRequired) ||
+		errors.Is(err, ErrOfferIDRequired) ||
+		errors.Is(err, ErrPriceObservationIDRequired) {
+		return status.Error(codes.InvalidArgument, err.Error())
+	}
+	return status.Errorf(codes.Internal, "%v", err)
 }
 
 func (s *Server) RecordRestaurant(ctx context.Context, req *ingestv1.RecordRestaurantRequest) (*ingestv1.RecordRestaurantResponse, error) {
 	r := req.GetRestaurant()
-	if r == nil || r.GetId() == "" {
-		return nil, status.Error(codes.InvalidArgument, "restaurant.id is required")
+	if r == nil {
+		return nil, mapError(ErrRestaurantIDRequired)
 	}
 	loc := r.GetLocation()
-	err := s.store.UpsertRestaurant(ctx, model.Restaurant{
+	err := s.svc.RecordRestaurant(ctx, model.Restaurant{
 		ID:   r.GetId(),
 		Name: r.GetName(),
 		Location: model.Location{
@@ -36,34 +49,34 @@ func (s *Server) RecordRestaurant(ctx context.Context, req *ingestv1.RecordResta
 		},
 	})
 	if err != nil {
-		return nil, status.Errorf(codes.Internal, "record restaurant: %v", err)
+		return nil, mapError(err)
 	}
 	return &ingestv1.RecordRestaurantResponse{Id: r.GetId()}, nil
 }
 
 func (s *Server) RecordMenuItem(ctx context.Context, req *ingestv1.RecordMenuItemRequest) (*ingestv1.RecordMenuItemResponse, error) {
 	item := req.GetMenuItem()
-	if item == nil || item.GetId() == "" {
-		return nil, status.Error(codes.InvalidArgument, "menu_item.id is required")
+	if item == nil {
+		return nil, mapError(ErrMenuItemIDRequired)
 	}
-	err := s.store.UpsertMenuItem(ctx, model.MenuItem{
+	err := s.svc.RecordMenuItem(ctx, model.MenuItem{
 		ID:           item.GetId(),
 		RestaurantID: item.GetRestaurantId(),
 		Name:         item.GetName(),
 	})
 	if err != nil {
-		return nil, status.Errorf(codes.Internal, "record menu item: %v", err)
+		return nil, mapError(err)
 	}
 	return &ingestv1.RecordMenuItemResponse{Id: item.GetId()}, nil
 }
 
 func (s *Server) RecordOffer(ctx context.Context, req *ingestv1.RecordOfferRequest) (*ingestv1.RecordOfferResponse, error) {
 	offer := req.GetOffer()
-	if offer == nil || offer.GetId() == "" {
-		return nil, status.Error(codes.InvalidArgument, "offer.id is required")
+	if offer == nil {
+		return nil, mapError(ErrOfferIDRequired)
 	}
 	price := offer.GetPrice()
-	err := s.store.UpsertOffer(ctx, model.Offer{
+	err := s.svc.RecordOffer(ctx, model.Offer{
 		ID:           offer.GetId(),
 		RestaurantID: offer.GetRestaurantId(),
 		ProviderID:   offer.GetProviderId(),
@@ -74,22 +87,22 @@ func (s *Server) RecordOffer(ctx context.Context, req *ingestv1.RecordOfferReque
 		},
 	})
 	if err != nil {
-		return nil, status.Errorf(codes.Internal, "record offer: %v", err)
+		return nil, mapError(err)
 	}
 	return &ingestv1.RecordOfferResponse{Id: offer.GetId()}, nil
 }
 
 func (s *Server) RecordPriceObservation(ctx context.Context, req *ingestv1.RecordPriceObservationRequest) (*ingestv1.RecordPriceObservationResponse, error) {
 	obs := req.GetPriceObservation()
-	if obs == nil || obs.GetId() == "" {
-		return nil, status.Error(codes.InvalidArgument, "price_observation.id is required")
+	if obs == nil {
+		return nil, mapError(ErrPriceObservationIDRequired)
 	}
 	price := obs.GetPrice()
-	observedAt := time.UnixMilli(obs.GetObservedAtUnixMs())
-	if obs.GetObservedAtUnixMs() == 0 {
-		observedAt = time.Now().UTC()
+	var observedAt time.Time
+	if ms := obs.GetObservedAtUnixMs(); ms != 0 {
+		observedAt = time.UnixMilli(ms)
 	}
-	err := s.store.UpsertPriceObservation(ctx, model.PriceObservation{
+	err := s.svc.RecordPriceObservation(ctx, model.PriceObservation{
 		ID:      obs.GetId(),
 		OfferID: obs.GetOfferId(),
 		Price: model.Money{
@@ -99,7 +112,7 @@ func (s *Server) RecordPriceObservation(ctx context.Context, req *ingestv1.Recor
 		ObservedAt: observedAt,
 	})
 	if err != nil {
-		return nil, status.Errorf(codes.Internal, "record price observation: %v", err)
+		return nil, mapError(err)
 	}
 	return &ingestv1.RecordPriceObservationResponse{Id: obs.GetId()}, nil
 }
