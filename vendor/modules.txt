@@ -1,4 +1,4 @@
-# github.com/ChristianDenniss/go-data-model v1.4.0
+# github.com/ChristianDenniss/go-data-model v1.5.0
 ## explicit; go 1.23
 github.com/ChristianDenniss/go-data-model/account/entity
 github.com/ChristianDenniss/go-data-model/account/repository
@@ -62,14 +62,17 @@ github.com/ChristianDenniss/go-data-model/serviceability/service
 github.com/ChristianDenniss/go-data-model/source/entity
 github.com/ChristianDenniss/go-data-model/source/repository
 github.com/ChristianDenniss/go-data-model/source/service
+github.com/ChristianDenniss/go-data-model/storefront/entity
+github.com/ChristianDenniss/go-data-model/storefront/repository
+github.com/ChristianDenniss/go-data-model/storefront/service
 github.com/ChristianDenniss/go-data-model/user/entity
 github.com/ChristianDenniss/go-data-model/user/repository
 github.com/ChristianDenniss/go-data-model/user/service
-# github.com/ChristianDenniss/go-data-store v1.1.0
+# github.com/ChristianDenniss/go-data-store v1.2.0
 ## explicit; go 1.23
 github.com/ChristianDenniss/go-data-store
 github.com/ChristianDenniss/go-data-store/migrations
-# github.com/ChristianDenniss/platform-contracts v1.2.0
+# github.com/ChristianDenniss/platform-contracts v1.3.0
 ## explicit; go 1.23
 github.com/ChristianDenniss/platform-contracts/gen/ingest/v1
 github.com/ChristianDenniss/platform-contracts/gen/ingest/v2
