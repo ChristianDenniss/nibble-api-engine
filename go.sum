@@ -1,9 +1,3 @@
-github.com/ChristianDenniss/go-data-model v1.1.0 h1:+1stUVpjrKxR+PTBxztWQw8QB7aXQBrcJw1StNuayac=
-github.com/ChristianDenniss/go-data-model v1.1.0/go.mod h1:D9AfdKTWYXijlISIB1EUqp6bq7+yKnEuopVYX564CHA=
-github.com/ChristianDenniss/go-data-store v1.0.1 h1:Z3MeJVt7OGYvzAQcuYu8aFWiSTlwmIMcexyjN3dwut4=
-github.com/ChristianDenniss/go-data-store v1.0.1/go.mod h1:MOYa0/YgzyHaqwORuyp3t6RUqvvWT8QWNswIBVvj5a0=
-github.com/ChristianDenniss/platform-contracts v1.0.0 h1:HybdBRTQb8bf5YJKqrSzn7+BL0uOASukWtoFMKJoLD4=
-github.com/ChristianDenniss/platform-contracts v1.0.0/go.mod h1:R/uo/nrmxmlx+LJPTfgd1WPytV0ktbCqN8cHfcJYS94=
 github.com/davecgh/go-spew v1.1.0/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/davecgh/go-spew v1.1.1 h1:vj9j/u1bqnvCEfJOwUhtlOARqs3+rkHYY13jYWTU97c=
 github.com/davecgh/go-spew v1.1.1/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
