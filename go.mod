@@ -3,8 +3,8 @@ module github.com/ChristianDenniss/api-engine
 go 1.23
 
 require (
-	github.com/ChristianDenniss/go-data-model v1.0.0
-	github.com/ChristianDenniss/go-data-store v1.0.0
+	github.com/ChristianDenniss/go-data-model v1.1.0
+	github.com/ChristianDenniss/go-data-store v1.0.1
 	github.com/ChristianDenniss/platform-contracts v1.0.0
 	google.golang.org/grpc v1.68.1
 )
@@ -12,6 +12,7 @@ require (
 require (
 	github.com/jackc/pgpassfile v1.0.0 // indirect
 	github.com/jackc/pgservicefile v0.0.0-20240606120523-5a60cdf6a761 // indirect
+	github.com/jackc/pgx/v5 v5.7.2 // indirect
 	github.com/jackc/puddle/v2 v2.2.2 // indirect
 	golang.org/x/crypto v0.31.0 // indirect
 	golang.org/x/net v0.29.0 // indirect
