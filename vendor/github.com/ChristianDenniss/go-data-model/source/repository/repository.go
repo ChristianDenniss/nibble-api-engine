@@ -29,3 +29,7 @@ type ItemRepository interface {
 	ListByCategory(ctx context.Context, sourceCategoryID string) ([]entity.Item, error)
 	Upsert(ctx context.Context, item entity.Item) error
 }
+
+type BrowseRepository interface {
+	LoadMenuBrowse(ctx context.Context, sourceStoreID, fulfillmentMode, deliveryExecutor string) (entity.MenuBrowse, error)
+}

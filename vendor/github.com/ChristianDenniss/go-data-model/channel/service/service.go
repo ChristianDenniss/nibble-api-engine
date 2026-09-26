@@ -28,3 +28,10 @@ func (s *Service) GetByID(ctx context.Context, id string) (entity.Channel, error
 	}
 	return s.repo.GetByID(ctx, id)
 }
+
+func (s *Service) GetBySlug(ctx context.Context, slug string) (entity.Channel, error) {
+	if slug == "" {
+		return entity.Channel{}, entity.ErrIDRequired
+	}
+	return s.repo.GetBySlug(ctx, slug)
+}
