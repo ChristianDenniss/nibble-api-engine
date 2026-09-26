@@ -6,8 +6,12 @@ import (
 	"errors"
 	"time"
 
+	brandentity "github.com/ChristianDenniss/go-data-model/brand/entity"
+	brandsvc "github.com/ChristianDenniss/go-data-model/brand/service"
 	channelentity "github.com/ChristianDenniss/go-data-model/channel/entity"
 	channelsvc "github.com/ChristianDenniss/go-data-model/channel/service"
+	dishentity "github.com/ChristianDenniss/go-data-model/dish/entity"
+	dishsvc "github.com/ChristianDenniss/go-data-model/dish/service"
 	fulfillmententity "github.com/ChristianDenniss/go-data-model/fulfillment/entity"
 	ingestentity "github.com/ChristianDenniss/go-data-model/ingest/entity"
 	ingestsvc "github.com/ChristianDenniss/go-data-model/ingest/service"
@@ -33,6 +37,8 @@ type Server struct {
 	channels   *channelsvc.Service
 	ingest     *ingestsvc.Service
 	source     *sourcesvc.Service
+	brands     *brandsvc.Service
+	dishes     *dishsvc.Service
 	places     *placesvc.Service
 	resolution *resolutionsvc.Service
 	itemPrices *itempricesvc.Service
@@ -43,6 +49,8 @@ func NewServer(
 	channels *channelsvc.Service,
 	ingest *ingestsvc.Service,
 	source *sourcesvc.Service,
+	brands *brandsvc.Service,
+	dishes *dishsvc.Service,
 	places *placesvc.Service,
 	resolution *resolutionsvc.Service,
 	itemPrices *itempricesvc.Service,
@@ -52,6 +60,8 @@ func NewServer(
 		channels:   channels,
 		ingest:     ingest,
 		source:     source,
+		brands:     brands,
+		dishes:     dishes,
 		places:     places,
 		resolution: resolution,
 		itemPrices: itemPrices,
@@ -69,7 +79,9 @@ func mapError(err error) error {
 		errors.Is(err, itempriceentity.ErrIDRequired) ||
 		errors.Is(err, quoteentity.ErrIDRequired) ||
 		errors.Is(err, placeentity.ErrIDRequired) ||
-		errors.Is(err, resolutionentity.ErrIDRequired) {
+		errors.Is(err, resolutionentity.ErrIDRequired) ||
+		errors.Is(err, brandentity.ErrIDRequired) ||
+		errors.Is(err, dishentity.ErrIDRequired) {
 		return status.Error(codes.InvalidArgument, err.Error())
 	}
 	if errors.Is(err, channelentity.ErrNotFound) ||
@@ -78,7 +90,9 @@ func mapError(err error) error {
 		errors.Is(err, itempriceentity.ErrNotFound) ||
 		errors.Is(err, quoteentity.ErrNotFound) ||
 		errors.Is(err, placeentity.ErrNotFound) ||
-		errors.Is(err, resolutionentity.ErrNotFound) {
+		errors.Is(err, resolutionentity.ErrNotFound) ||
+		errors.Is(err, brandentity.ErrNotFound) ||
+		errors.Is(err, dishentity.ErrNotFound) {
 		return status.Error(codes.NotFound, err.Error())
 	}
 	return status.Errorf(codes.Internal, "%v", err)
@@ -333,4 +347,30 @@ func (s *Server) RecordItemMatch(ctx context.Context, req *ingestv2.RecordItemMa
 		return nil, mapError(err)
 	}
 	return &ingestv2.RecordItemMatchResponse{Id: m.GetId()}, nil
+}
+
+func (s *Server) RecordBrand(ctx context.Context, req *ingestv2.RecordBrandRequest) (*ingestv2.RecordBrandResponse, error) {
+	b := req.GetBrand()
+	if b == nil {
+		return nil, mapError(brandentity.ErrIDRequired)
+	}
+	err := s.brands.Record(ctx, brandentity.Brand{ID: b.GetId(), Slug: b.GetSlug(), Name: b.GetName()})
+	if err != nil {
+		return nil, mapError(err)
+	}
+	return &ingestv2.RecordBrandResponse{Id: b.GetId()}, nil
+}
+
+func (s *Server) RecordDish(ctx context.Context, req *ingestv2.RecordDishRequest) (*ingestv2.RecordDishResponse, error) {
+	d := req.GetDish()
+	if d == nil {
+		return nil, mapError(dishentity.ErrIDRequired)
+	}
+	err := s.dishes.Record(ctx, dishentity.Dish{
+		ID: d.GetId(), BrandID: d.GetBrandId(), Name: d.GetName(), Description: d.GetDescription(),
+	})
+	if err != nil {
+		return nil, mapError(err)
+	}
+	return &ingestv2.RecordDishResponse{Id: d.GetId()}, nil
 }

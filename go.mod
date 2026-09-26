@@ -3,9 +3,9 @@ module github.com/ChristianDenniss/api-engine
 go 1.23
 
 require (
-	github.com/ChristianDenniss/go-data-model v1.1.0
-	github.com/ChristianDenniss/go-data-store v1.0.1
-	github.com/ChristianDenniss/platform-contracts v1.0.0
+	github.com/ChristianDenniss/go-data-model v1.3.0
+	github.com/ChristianDenniss/go-data-store v1.0.2-0.20260926171720-bb1c4602456c
+	github.com/ChristianDenniss/platform-contracts v1.1.0
 	google.golang.org/grpc v1.68.1
 )
 

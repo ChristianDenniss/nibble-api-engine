@@ -70,9 +70,9 @@ func main() {
 		postgres.NewSourceCategoryRepository(db),
 		postgres.NewSourceItemRepository(db),
 	)
-	_ = brandsvc.New(postgres.NewBrandRepository(db))
+	brandSvc := brandsvc.New(postgres.NewBrandRepository(db))
 	placeSvc := placesvc.New(postgres.NewPlaceRepository(db), postgres.NewPurchaseOptionRepository(db))
-	_ = dishsvc.New(postgres.NewDishRepository(db))
+	dishSvc := dishsvc.New(postgres.NewDishRepository(db))
 	resolutionSvc := resolutionsvc.New(
 		postgres.NewStoreMatchRepository(db),
 		postgres.NewItemMatchRepository(db),
@@ -81,13 +81,17 @@ func main() {
 	itemPriceSvc := itempricesvc.New(postgres.NewItemPriceObservationRepository(db))
 	quoteObsSvc := quoteobssvc.New(postgres.NewQuoteObservationRepository(db))
 	_ = promotionsvc.New(postgres.NewPromotionRepository(db), postgres.NewMembershipProductRepository(db))
-	_ = serviceabilitysvc.New(postgres.NewSourceStoreStatusRepository(db))
+	serviceabilitySvc := serviceabilitysvc.New(
+		postgres.NewSourceStoreStatusRepository(db),
+		postgres.NewServiceAreaRepository(db),
+	)
 	userSvc := usersvc.New(
 		postgres.NewUserRepository(db),
 		postgres.NewUserSettingsRepository(db),
 		postgres.NewCompareSessionRepository(db),
+		postgres.NewUserMembershipRepository(db),
 	)
-	compareSvc := comparesvc.New(placeSvc, userSvc, channelSvc, resolutionSvc, itemPriceSvc, quoteObsSvc)
+	compareSvc := comparesvc.New(placeSvc, userSvc, channelSvc, resolutionSvc, itemPriceSvc, quoteObsSvc, serviceabilitySvc)
 
 	healthController := health.NewController(health.NewService(db))
 	compareController := compare.NewController(compareSvc, userSvc)
@@ -102,7 +106,7 @@ func main() {
 		restaurantSvc, menuSvc, offerSvc, observationSvc,
 	))
 	ingestv2.RegisterIngestServiceServer(grpcServer, grpcingestv2.NewServer(
-		channelSvc, ingestDomainSvc, sourceSvc, placeSvc, resolutionSvc, itemPriceSvc, quoteObsSvc,
+		channelSvc, ingestDomainSvc, sourceSvc, brandSvc, dishSvc, placeSvc, resolutionSvc, itemPriceSvc, quoteObsSvc,
 	))
 	go func() {
 		log.Printf("grpc ingest listening on %s (v1 + v2)", grpcAddr)
