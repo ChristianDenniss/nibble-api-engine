@@ -9,13 +9,16 @@ import (
 	"os/signal"
 	"syscall"
 
+	"github.com/ChristianDenniss/api-engine/internal/account"
 	"github.com/ChristianDenniss/api-engine/internal/compare"
 	"github.com/ChristianDenniss/api-engine/internal/grpcingest"
 	grpcingestv2 "github.com/ChristianDenniss/api-engine/internal/grpcingest/v2"
 	"github.com/ChristianDenniss/api-engine/internal/health"
 	"github.com/ChristianDenniss/api-engine/internal/httpx"
 	"github.com/ChristianDenniss/api-engine/internal/sourcemenu"
+	"github.com/ChristianDenniss/api-engine/internal/sourcestores"
 	"github.com/ChristianDenniss/api-engine/internal/storefront"
+	accountsvc "github.com/ChristianDenniss/go-data-model/account/service"
 	brandsvc "github.com/ChristianDenniss/go-data-model/brand/service"
 	channelsvc "github.com/ChristianDenniss/go-data-model/channel/service"
 	comparesvc "github.com/ChristianDenniss/go-data-model/compare/service"
@@ -106,7 +109,9 @@ func main() {
 	healthController := health.NewController(health.NewService(db))
 	compareController := compare.NewController(compareSvc, userSvc)
 	storefrontController := storefront.NewController(storefrontsvc.New(postgres.NewStorefrontRepository(db)))
+	accountController := account.NewController(accountsvc.New(postgres.NewAccountRepository(db)))
 	sourceMenuController := sourcemenu.NewController(sourceSvc)
+	sourceStoresController := sourcestores.NewController(sourceSvc)
 	log.Printf("domains: legacy ingest + target catalog/pricing/compare wired")
 
 	lis, err := net.Listen("tcp", grpcAddr)
@@ -131,7 +136,9 @@ func main() {
 	health.Mount(mux, healthController)
 	compare.Mount(mux, compareController)
 	storefront.Mount(mux, storefrontController)
+	account.Mount(mux, accountController)
 	sourcemenu.Mount(mux, sourceMenuController)
+	sourcestores.Mount(mux, sourceStoresController)
 	httpServer := &http.Server{Addr: httpAddr, Handler: httpx.Wrap(mux)}
 	go func() {
 		log.Printf("http listening on %s", httpAddr)
