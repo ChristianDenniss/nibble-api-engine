@@ -27,3 +27,10 @@ func (s *Service) RecordPromotion(ctx context.Context, p entity.Promotion) error
 func (s *Service) ActivePromotions(ctx context.Context, channelID string, at time.Time) ([]entity.Promotion, error) {
 	return s.promos.ListActiveByChannel(ctx, channelID, at)
 }
+
+func (s *Service) RecordMembershipProduct(ctx context.Context, p entity.MembershipProduct) error {
+	if p.ID == "" {
+		return entity.ErrIDRequired
+	}
+	return s.memberships.Upsert(ctx, p)
+}
