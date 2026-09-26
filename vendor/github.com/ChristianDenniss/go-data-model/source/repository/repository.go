@@ -9,6 +9,7 @@ import (
 type StoreRepository interface {
 	GetByID(ctx context.Context, id string) (entity.Store, error)
 	GetByChannelExternal(ctx context.Context, channelID, externalStoreID string) (entity.Store, error)
+	ListByChannel(ctx context.Context, channelID string) ([]entity.Store, error)
 	Upsert(ctx context.Context, store entity.Store) error
 }
 

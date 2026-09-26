@@ -67,6 +67,13 @@ func (s *Service) GetStore(ctx context.Context, id string) (entity.Store, error)
 	return s.stores.GetByID(ctx, id)
 }
 
+func (s *Service) ListStoresByChannel(ctx context.Context, channelID string) ([]entity.Store, error) {
+	if channelID == "" {
+		return nil, entity.ErrIDRequired
+	}
+	return s.stores.ListByChannel(ctx, channelID)
+}
+
 func (s *Service) GetItem(ctx context.Context, id string) (entity.Item, error) {
 	if id == "" {
 		return entity.Item{}, entity.ErrIDRequired
