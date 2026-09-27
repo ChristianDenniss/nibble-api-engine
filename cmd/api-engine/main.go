@@ -14,6 +14,7 @@ import (
 	"github.com/ChristianDenniss/api-engine/internal/account"
 	"github.com/ChristianDenniss/api-engine/internal/auth"
 	"github.com/ChristianDenniss/api-engine/internal/compare"
+	emailcontroller "github.com/ChristianDenniss/api-engine/internal/email"
 	"github.com/ChristianDenniss/api-engine/internal/grpcingest"
 	grpcingestv2 "github.com/ChristianDenniss/api-engine/internal/grpcingest/v2"
 	"github.com/ChristianDenniss/api-engine/internal/health"
@@ -128,6 +129,7 @@ func main() {
 	storefrontController := storefront.NewController(storefrontSvc, cartSvc, postgres.NewOutboundClickRepository(db))
 	promotionsController := promotions.NewController(promoSvc)
 	smsController := smscontroller.NewController(db, promotionsController)
+	emailController := emailcontroller.NewController(db, promotionsController, emailcontroller.ConfigFromEnv())
 	homeController := home.NewController(homesvc.New(storefrontSvc, promoSvc, merchSvc))
 	sponsoredController := sponsored.NewController(merchSvc)
 	accountSvc := accountsvc.New(postgres.NewAccountRepository(db))
@@ -164,6 +166,7 @@ func main() {
 	storefront.Mount(mux, storefrontController)
 	promotions.Mount(mux, promotionsController)
 	smscontroller.Mount(mux, smsController)
+	emailcontroller.Mount(mux, emailController)
 	storefront.MountMenuItems(mux, storefront.NewMenuItemController(menuSvc))
 	home.Mount(mux, homeController)
 	sponsored.Mount(mux, sponsoredController)
