@@ -126,7 +126,7 @@ func main() {
 	storefrontSvc := storefrontsvc.New(postgres.NewStorefrontRepository(db))
 	cartSvc := cartsvc.New(postgres.NewCartRepository(db))
 	merchSvc := merchsvc.New(postgres.NewMerchandisingRepository(db))
-	storefrontController := storefront.NewController(storefrontSvc, cartSvc, postgres.NewOutboundClickRepository(db))
+	storefrontController := storefront.NewController(storefrontSvc, cartSvc, postgres.NewOutboundClickRepository(db), catalogSvc)
 	promotionsController := promotions.NewController(promoSvc)
 	smsController := smscontroller.NewController(db, promotionsController)
 	emailController := emailcontroller.NewController(db, promotionsController, emailcontroller.ConfigFromEnv())

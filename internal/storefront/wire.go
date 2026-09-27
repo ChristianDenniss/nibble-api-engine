@@ -1,10 +1,14 @@
 package storefront
 
 import (
+	"fmt"
+	"strconv"
+	"strings"
 	"time"
 
 	accountentity "github.com/ChristianDenniss/go-data-model/account/entity"
 	cartentity "github.com/ChristianDenniss/go-data-model/cart/entity"
+	catalogentity "github.com/ChristianDenniss/go-data-model/catalog"
 	categoryentity "github.com/ChristianDenniss/go-data-model/category/entity"
 	cuisineentity "github.com/ChristianDenniss/go-data-model/cuisine/entity"
 	locationentity "github.com/ChristianDenniss/go-data-model/location/entity"
@@ -16,6 +20,73 @@ import (
 	restaurantentity "github.com/ChristianDenniss/go-data-model/restaurant/entity"
 	storefrontentity "github.com/ChristianDenniss/go-data-model/storefront/entity"
 )
+
+func mergeCapturedCatalog(response *catalogResponse, captured catalogentity.PublicCatalog) {
+	existingRestaurants := make(map[string]bool, len(response.Restaurants))
+	for _, restaurant := range response.Restaurants {
+		existingRestaurants[restaurant.ID] = true
+	}
+	existingItems := make(map[string]bool, len(response.Items))
+	for _, item := range response.Items {
+		existingItems[item.ID] = true
+	}
+	existingOffers := make(map[string]bool, len(response.Offers))
+	for _, offer := range response.Offers {
+		existingOffers[offer.ID] = true
+	}
+	providerIDs := map[string]string{"DoorDash": "prov_doordash", "SkipTheDishes": "prov_skip", "Uber Eats": "prov_ubereats"}
+
+	for _, capturedRestaurant := range captured.Restaurants {
+		if capturedRestaurant == nil || existingRestaurants[capturedRestaurant.ID] {
+			continue
+		}
+		rating, _ := strconv.ParseFloat(capturedRestaurant.Rating, 64)
+		appURL := ""
+		if len(capturedRestaurant.Sources) > 0 {
+			appURL = capturedRestaurant.Sources[0].URL
+		}
+		response.Restaurants = append(response.Restaurants, restaurantWire{
+			ID: capturedRestaurant.ID, Name: capturedRestaurant.Name,
+			Location:   locationWire{Address: capturedRestaurant.Address, City: captured.City, Region: "NB"},
+			CuisineIds: []string{}, CategoryIds: []string{"cat_food"},
+			Rating: ratingWire{Average: rating}, AppURL: appURL, Hours: []hoursWire{},
+		})
+		existingRestaurants[capturedRestaurant.ID] = true
+
+		for itemIndex, capturedItem := range capturedRestaurant.Items {
+			if capturedItem == nil {
+				continue
+			}
+			itemID := fmt.Sprintf("%s-item-%d", capturedRestaurant.ID, itemIndex)
+			if !existingItems[itemID] {
+				response.Items = append(response.Items, itemWire{
+					ID: itemID, RestaurantID: capturedRestaurant.ID, Name: capturedItem.Name,
+					Section: capturedItem.Section, Description: "Captured provider menu item.", ImageURL: "",
+				})
+				existingItems[itemID] = true
+			}
+			for offerIndex, capturedOffer := range capturedItem.Offers {
+				providerID := providerIDs[capturedOffer.Provider]
+				if providerID == "" || capturedOffer.Amount == nil {
+					continue
+				}
+				offerID := fmt.Sprintf("%s-offer-%d-%d", itemID, offerIndex, len(response.Offers))
+				if existingOffers[offerID] {
+					continue
+				}
+				currency := capturedOffer.Currency
+				if strings.TrimSpace(currency) == "" {
+					currency = "CAD"
+				}
+				response.Offers = append(response.Offers, offerWire{
+					ID: offerID, RestaurantID: capturedRestaurant.ID, MenuItemID: itemID,
+					ProviderID: providerID, Price: moneyWire{AmountCents: *capturedOffer.Amount, Currency: currency},
+				})
+				existingOffers[offerID] = true
+			}
+		}
+	}
+}
 
 // Wire types use camelCase JSON keys to match gentypes / the web app.
 

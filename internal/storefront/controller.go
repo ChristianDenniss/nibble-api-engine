@@ -14,6 +14,7 @@ import (
 	"github.com/ChristianDenniss/api-engine/internal/session"
 	cartentity "github.com/ChristianDenniss/go-data-model/cart/entity"
 	cartsvc "github.com/ChristianDenniss/go-data-model/cart/service"
+	catalogdomain "github.com/ChristianDenniss/go-data-model/catalog"
 	storefrontentity "github.com/ChristianDenniss/go-data-model/storefront/entity"
 	storefrontrepo "github.com/ChristianDenniss/go-data-model/storefront/repository"
 	storefrontsvc "github.com/ChristianDenniss/go-data-model/storefront/service"
@@ -22,18 +23,24 @@ import (
 )
 
 type Controller struct {
-	svc            *storefrontsvc.Service
-	cart           *cartsvc.Service
-	analytics      userrepo.OutboundClickRepository
-	defaultAccount string
+	svc             *storefrontsvc.Service
+	cart            *cartsvc.Service
+	analytics       userrepo.OutboundClickRepository
+	defaultAccount  string
+	capturedCatalog *catalogdomain.Service
 }
 
-func NewController(svc *storefrontsvc.Service, carts *cartsvc.Service, analytics userrepo.OutboundClickRepository) *Controller {
+func NewController(svc *storefrontsvc.Service, carts *cartsvc.Service, analytics userrepo.OutboundClickRepository, captured ...*catalogdomain.Service) *Controller {
+	var capturedCatalog *catalogdomain.Service
+	if len(captured) > 0 {
+		capturedCatalog = captured[0]
+	}
 	return &Controller{
-		svc:            svc,
-		cart:           carts,
-		analytics:      analytics,
-		defaultAccount: getenv("DEFAULT_ACCOUNT_ID", "acct_dev"),
+		svc:             svc,
+		cart:            carts,
+		analytics:       analytics,
+		defaultAccount:  getenv("DEFAULT_ACCOUNT_ID", "acct_dev"),
+		capturedCatalog: capturedCatalog,
 	}
 }
 
@@ -134,7 +141,13 @@ func (c *Controller) Get(w http.ResponseWriter, r *http.Request) {
 		httpx.WriteFailure(w, http.StatusInternalServerError, "failed to load catalog")
 		return
 	}
-	httpx.WriteJSON(w, http.StatusOK, toCatalogResponse(catalog))
+	response := toCatalogResponse(catalog)
+	if c.capturedCatalog != nil && r.URL.Query().Get("lightweight") != "true" {
+		if captured, readErr := c.capturedCatalog.Read(r.Context()); readErr == nil {
+			mergeCapturedCatalog(&response, captured)
+		}
+	}
+	httpx.WriteJSON(w, http.StatusOK, response)
 }
 
 type paginatedRestaurantsResponse struct {
