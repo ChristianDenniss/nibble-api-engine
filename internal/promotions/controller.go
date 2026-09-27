@@ -129,6 +129,7 @@ func validatePromotion(p promotionentity.Promotion) error {
 			return errors.New("amount discount must be positive")
 		}
 	case promotionentity.KindFreeDelivery:
+	case promotionentity.KindFixedPrice:
 	default:
 		return errors.New("unsupported promotion kind")
 	}
