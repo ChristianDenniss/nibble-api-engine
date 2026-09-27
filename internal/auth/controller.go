@@ -128,6 +128,7 @@ func (c *Controller) Providers(w http.ResponseWriter, _ *http.Request) {
 }
 
 func (c *Controller) OAuthStart(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Cache-Control", "no-store")
 	provider, ok := c.providers[r.PathValue("provider")]
 	if !ok {
 		httpx.WriteFailure(w, http.StatusNotFound, "unknown provider")
@@ -152,6 +153,7 @@ func (c *Controller) OAuthStart(w http.ResponseWriter, r *http.Request) {
 }
 
 func (c *Controller) OAuthCallback(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Cache-Control", "no-store")
 	if r.Method != http.MethodGet && r.Method != http.MethodPost {
 		w.WriteHeader(http.StatusMethodNotAllowed)
 		return
@@ -177,8 +179,13 @@ func (c *Controller) OAuthCallback(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	state, nonce, found := strings.Cut(cookie.Value, ".")
-	if !found || subtle.ConstantTimeCompare([]byte(state), []byte(r.FormValue("state"))) != 1 {
+	if !found || state == "" || nonce == "" || subtle.ConstantTimeCompare([]byte(state), []byte(r.FormValue("state"))) != 1 {
 		c.redirectToLogin(w, r, "sso_expired")
+		return
+	}
+
+	if r.FormValue("code") == "" {
+		c.redirectToLogin(w, r, "sso_failed")
 		return
 	}
 

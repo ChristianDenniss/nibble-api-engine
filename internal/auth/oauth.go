@@ -235,7 +235,7 @@ func exchangeCode(ctx context.Context, endpoint string, form url.Values) (idToke
 		return idTokenClaims{}, err
 	}
 	if res.StatusCode != http.StatusOK {
-		return idTokenClaims{}, fmt.Errorf("token endpoint %s: %d %s", endpoint, res.StatusCode, strings.TrimSpace(string(body)))
+		return idTokenClaims{}, fmt.Errorf("token endpoint %s: status %d", endpoint, res.StatusCode)
 	}
 	var tokens struct {
 		IDToken string `json:"id_token"`

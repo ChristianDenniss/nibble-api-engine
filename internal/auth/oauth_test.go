@@ -12,6 +12,7 @@ import (
 	"math/big"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"strings"
 	"testing"
 	"time"
@@ -133,4 +134,50 @@ func decodeSegment(t *testing.T, segment string, dst any) {
 func jsonInt(v int64) string {
 	out, _ := json.Marshal(v)
 	return string(out)
+}
+
+func TestGoogleStartUsesConfiguredCallbackAndState(t *testing.T) {
+	mux := http.NewServeMux()
+	Mount(mux, NewController(nil, nil, Config{GoogleClientID: "google-client", GoogleClientSecret: "secret", CallbackBaseURL: "http://localhost:5174/api"}))
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/v1/auth/oauth/google/start", nil))
+	location, err := url.Parse(rec.Header().Get("Location"))
+	if err != nil || location.Host != "accounts.google.com" {
+		t.Fatalf("unexpected redirect: %v", location)
+	}
+	q := location.Query()
+	if q.Get("redirect_uri") != "http://localhost:5174/api/v1/auth/oauth/google/callback" || q.Get("client_id") != "google-client" || q.Get("response_type") != "code" {
+		t.Fatal("incorrect OAuth parameters")
+	}
+	cookies := rec.Result().Cookies()
+	if len(cookies) != 1 || !cookies[0].HttpOnly || cookies[0].SameSite != http.SameSiteLaxMode || cookies[0].MaxAge != 600 {
+		t.Fatal("incorrect state cookie")
+	}
+	if q.Get("state") == "" || q.Get("nonce") == "" || cookies[0].Value != q.Get("state")+"."+q.Get("nonce") {
+		t.Fatal("state/nonce not bound to browser")
+	}
+	if rec.Header().Get("Cache-Control") != "no-store" {
+		t.Fatal("redirect must not be cached")
+	}
+}
+
+func TestGoogleCallbackRejectsMissingCodeAndEmptyState(t *testing.T) {
+	for _, tc := range []struct{ cookie, query, want string }{
+		{"state.nonce", "state=state", "sso_failed"},
+		{".nonce", "code=x", "sso_expired"},
+		{"state.", "state=state&code=x", "sso_expired"},
+	} {
+		mux := http.NewServeMux()
+		Mount(mux, NewController(nil, nil, Config{GoogleClientID: "id", GoogleClientSecret: "secret"}))
+		req := httptest.NewRequest(http.MethodGet, "/v1/auth/oauth/google/callback?"+tc.query, nil)
+		req.AddCookie(&http.Cookie{Name: "nibble_oauth_google", Value: tc.cookie})
+		rec := httptest.NewRecorder()
+		mux.ServeHTTP(rec, req)
+		if rec.Header().Get("Location") != "/login?error="+tc.want {
+			t.Fatalf("unexpected result %s", rec.Header().Get("Location"))
+		}
+		if rec.Result().Cookies()[0].MaxAge != -1 {
+			t.Fatal("state cookie not cleared")
+		}
+	}
 }
