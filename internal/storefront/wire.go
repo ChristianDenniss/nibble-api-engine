@@ -4,16 +4,17 @@ import (
 	"time"
 
 	accountentity "github.com/ChristianDenniss/go-data-model/account/entity"
-	categoryentity "github.com/ChristianDenniss/go-data-model/category/entity"
 	cartentity "github.com/ChristianDenniss/go-data-model/cart/entity"
+	categoryentity "github.com/ChristianDenniss/go-data-model/category/entity"
 	cuisineentity "github.com/ChristianDenniss/go-data-model/cuisine/entity"
+	locationentity "github.com/ChristianDenniss/go-data-model/location/entity"
 	menuentity "github.com/ChristianDenniss/go-data-model/menu/entity"
 	offerentity "github.com/ChristianDenniss/go-data-model/offer/entity"
 	orderentity "github.com/ChristianDenniss/go-data-model/order/entity"
+	promotionentity "github.com/ChristianDenniss/go-data-model/promotion/entity"
 	providerentity "github.com/ChristianDenniss/go-data-model/provider/entity"
 	restaurantentity "github.com/ChristianDenniss/go-data-model/restaurant/entity"
 	storefrontentity "github.com/ChristianDenniss/go-data-model/storefront/entity"
-	locationentity "github.com/ChristianDenniss/go-data-model/location/entity"
 )
 
 // Wire types use camelCase JSON keys to match gentypes / the web app.
@@ -26,6 +27,7 @@ type catalogResponse struct {
 	Restaurants []restaurantWire `json:"restaurants"`
 	Items       []itemWire       `json:"items"`
 	Offers      []offerWire      `json:"offers"`
+	Deals       []activeDealWire `json:"deals"`
 	Cart        cartWire         `json:"cart"`
 	Orders      []orderWire      `json:"orders"`
 }
@@ -52,12 +54,12 @@ type savedAddressWire struct {
 }
 
 type paymentMethodWire struct {
-	ID        string `json:"id"`
-	Brand     string `json:"brand"`
-	Last4     string `json:"last4"`
-	ExpMonth  int    `json:"expMonth"`
-	ExpYear   int    `json:"expYear"`
-	Default   bool   `json:"default"`
+	ID       string `json:"id"`
+	Brand    string `json:"brand"`
+	Last4    string `json:"last4"`
+	ExpMonth int    `json:"expMonth"`
+	ExpYear  int    `json:"expYear"`
+	Default  bool   `json:"default"`
 }
 
 type accountWire struct {
@@ -65,6 +67,7 @@ type accountWire struct {
 	Name           string              `json:"name"`
 	Email          string              `json:"email"`
 	Phone          string              `json:"phone"`
+	Role           string              `json:"role"`
 	Addresses      []savedAddressWire  `json:"addresses"`
 	PaymentMethods []paymentMethodWire `json:"paymentMethods"`
 }
@@ -129,6 +132,35 @@ type offerWire struct {
 	EstimatedMinutes int       `json:"estimatedMinutes"`
 }
 
+type activeDealWire struct {
+	Promotion promotionWire         `json:"promotion"`
+	Targets   []promotionTargetWire `json:"targets"`
+}
+type promotionWire struct {
+	ID              string    `json:"id"`
+	ChannelID       string    `json:"channelId"`
+	Name            string    `json:"name"`
+	Description     string    `json:"description"`
+	Kind            string    `json:"kind"`
+	FulfillmentMode string    `json:"fulfillmentMode"`
+	Value           moneyWire `json:"value"`
+	ValueBPS        int       `json:"valueBPS"`
+	StartsAt        string    `json:"startsAt"`
+	EndsAt          string    `json:"endsAt"`
+}
+type promotionTargetWire struct {
+	ID                 string `json:"id"`
+	PromotionID        string `json:"promotionId"`
+	PlaceID            string `json:"placeId"`
+	SourceStoreID      string `json:"sourceStoreId"`
+	SourceItemID       string `json:"sourceItemId"`
+	DishID             string `json:"dishId"`
+	BrandID            string `json:"brandId"`
+	LegacyRestaurantID string `json:"legacyRestaurantId"`
+	Region             string `json:"region"`
+	Country            string `json:"country"`
+}
+
 type cartLineWire struct {
 	ID           string `json:"id"`
 	RestaurantID string `json:"restaurantId"`
@@ -170,9 +202,22 @@ func toCatalogResponse(c storefrontentity.Catalog) catalogResponse {
 		Restaurants: mapRestaurants(c.Restaurants),
 		Items:       mapItems(c.Items),
 		Offers:      mapOffers(c.Offers),
+		Deals:       mapDeals(c.Deals),
 		Cart:        toCartWire(c.Cart),
 		Orders:      mapOrders(c.Orders),
 	}
+}
+
+func mapDeals(in []promotionentity.ActivePromotion) []activeDealWire {
+	out := make([]activeDealWire, len(in))
+	for i, d := range in {
+		targets := make([]promotionTargetWire, len(d.Targets))
+		for j, t := range d.Targets {
+			targets[j] = promotionTargetWire{ID: t.ID, PromotionID: t.PromotionID, PlaceID: t.PlaceID, SourceStoreID: t.SourceStoreID, SourceItemID: t.SourceItemID, DishID: t.DishID, BrandID: t.BrandID, LegacyRestaurantID: t.LegacyRestaurantID, Region: t.Region, Country: t.Country}
+		}
+		out[i] = activeDealWire{Promotion: promotionWire{ID: d.Promotion.ID, ChannelID: d.Promotion.ChannelID, Name: d.Promotion.Name, Description: d.Promotion.Description, Kind: d.Promotion.Kind, FulfillmentMode: d.Promotion.FulfillmentMode, Value: moneyWire{AmountCents: d.Promotion.Value.AmountCents, Currency: d.Promotion.Value.Currency}, ValueBPS: d.Promotion.ValueBPS, StartsAt: d.Promotion.StartsAt.Format(time.RFC3339), EndsAt: d.Promotion.EndsAt.Format(time.RFC3339)}, Targets: targets}
+	}
+	return out
 }
 
 func toAccountWire(a accountentity.Account) accountWire {
@@ -195,7 +240,7 @@ func toAccountWire(a accountentity.Account) accountWire {
 		})
 	}
 	return accountWire{
-		ID: a.ID, Name: a.Name, Email: a.Email, Phone: a.Phone,
+		ID: a.ID, Name: a.Name, Email: a.Email, Phone: a.Phone, Role: a.Role,
 		Addresses: addrs, PaymentMethods: pays,
 	}
 }
@@ -229,10 +274,10 @@ func mapRestaurants(in []restaurantentity.Restaurant) []restaurantWire {
 	for i, r := range in {
 		out[i] = restaurantWire{
 			ID: r.ID, Name: r.Name,
-			Location: locationFromDomain(r.Location),
+			Location:   locationFromDomain(r.Location),
 			CuisineIds: r.CuisineIDs, CategoryIds: r.CategoryIDs,
 			Rating: ratingWire{Average: r.Rating.Average, Count: r.Rating.Count},
-			Phone: r.Phone, AppURL: r.AppURL,
+			Phone:  r.Phone, AppURL: r.AppURL,
 			Hours: mapHours(r.Hours),
 		}
 	}
@@ -268,7 +313,7 @@ func mapOffers(in []offerentity.Offer) []offerWire {
 	for i, o := range in {
 		out[i] = offerWire{
 			ID: o.ID, RestaurantID: o.RestaurantID, MenuItemID: o.MenuItemID, ProviderID: o.ProviderID,
-			Price: moneyWire{AmountCents: o.Price.AmountCents, Currency: o.Price.Currency},
+			Price:            moneyWire{AmountCents: o.Price.AmountCents, Currency: o.Price.Currency},
 			EstimatedMinutes: o.EstimatedMinutes,
 		}
 	}

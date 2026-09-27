@@ -39,6 +39,7 @@ type accountResponse struct {
 	ID    string `json:"id"`
 	Name  string `json:"name"`
 	Email string `json:"email"`
+	Role  string `json:"role"`
 }
 
 type sessionResponse struct {
@@ -242,7 +243,7 @@ func (c *Controller) stateCookie(p oauthProvider, value string, maxAge int) *htt
 }
 
 func toAccountResponse(a accountentity.Account) *accountResponse {
-	return &accountResponse{ID: a.ID, Name: a.Name, Email: a.Email}
+	return &accountResponse{ID: a.ID, Name: a.Name, Email: a.Email, Role: a.Role}
 }
 
 // decodeJSON requires a JSON content type so cross-site HTML forms cannot post

@@ -17,7 +17,9 @@ import (
 	"github.com/ChristianDenniss/api-engine/internal/health"
 	"github.com/ChristianDenniss/api-engine/internal/home"
 	"github.com/ChristianDenniss/api-engine/internal/httpx"
+	"github.com/ChristianDenniss/api-engine/internal/promotions"
 	"github.com/ChristianDenniss/api-engine/internal/serviceability"
+	smscontroller "github.com/ChristianDenniss/api-engine/internal/sms"
 	"github.com/ChristianDenniss/api-engine/internal/sourcemenu"
 	"github.com/ChristianDenniss/api-engine/internal/sourcestores"
 	"github.com/ChristianDenniss/api-engine/internal/sponsored"
@@ -121,6 +123,8 @@ func main() {
 	cartSvc := cartsvc.New(postgres.NewCartRepository(db))
 	merchSvc := merchsvc.New(postgres.NewMerchandisingRepository(db))
 	storefrontController := storefront.NewController(storefrontSvc, cartSvc, postgres.NewOutboundClickRepository(db))
+	promotionsController := promotions.NewController(promoSvc)
+	smsController := smscontroller.NewController(db, promotionsController)
 	homeController := home.NewController(homesvc.New(storefrontSvc, promoSvc, merchSvc))
 	sponsoredController := sponsored.NewController(merchSvc)
 	accountSvc := accountsvc.New(postgres.NewAccountRepository(db))
@@ -154,6 +158,8 @@ func main() {
 	health.Mount(mux, healthController)
 	compare.Mount(mux, compareController)
 	storefront.Mount(mux, storefrontController)
+	promotions.Mount(mux, promotionsController)
+	smscontroller.Mount(mux, smsController)
 	storefront.MountMenuItems(mux, storefront.NewMenuItemController(menuSvc))
 	home.Mount(mux, homeController)
 	sponsored.Mount(mux, sponsoredController)

@@ -10,6 +10,12 @@ require (
 	google.golang.org/grpc v1.68.1
 )
 
+// Local workspace modules keep the API, promotion model, and SMS persistence
+// changes in lockstep during development.
+replace github.com/ChristianDenniss/go-data-model => ../nibble-go-data-model
+replace github.com/ChristianDenniss/go-data-store => ../nibble-go-data-store
+replace github.com/ChristianDenniss/platform-contracts => ../nibble-platform-contracts
+
 require (
 	github.com/jackc/pgpassfile v1.0.0 // indirect
 	github.com/jackc/pgservicefile v0.0.0-20240606120523-5a60cdf6a761 // indirect
