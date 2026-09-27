@@ -2,6 +2,8 @@ package main
 
 import (
 	"context"
+	"github.com/ChristianDenniss/api-engine/internal/catalog"
+	catalogdomain "github.com/ChristianDenniss/go-data-model/catalog"
 	"log"
 	"net"
 	"net/http"
@@ -28,8 +30,8 @@ import (
 	quoteobssvc "github.com/ChristianDenniss/go-data-model/quoteobs/service"
 	resolutionsvc "github.com/ChristianDenniss/go-data-model/resolution/service"
 	restaurantsvc "github.com/ChristianDenniss/go-data-model/restaurant/service"
-	sourcesvc "github.com/ChristianDenniss/go-data-model/source/service"
 	serviceabilitysvc "github.com/ChristianDenniss/go-data-model/serviceability/service"
+	sourcesvc "github.com/ChristianDenniss/go-data-model/source/service"
 	usersvc "github.com/ChristianDenniss/go-data-model/user/service"
 	"github.com/ChristianDenniss/go-data-store"
 	ingestv1 "github.com/ChristianDenniss/platform-contracts/gen/ingest/v1"
@@ -93,6 +95,7 @@ func main() {
 	)
 	compareSvc := comparesvc.New(placeSvc, userSvc, channelSvc, resolutionSvc, itemPriceSvc, quoteObsSvc, serviceabilitySvc)
 
+	catalogSvc := catalogdomain.New(postgres.NewCatalogRepository(db))
 	healthController := health.NewController(health.NewService(db))
 	compareController := compare.NewController(compareSvc, userSvc)
 	log.Printf("domains: legacy ingest + target catalog/pricing/compare wired")
@@ -101,12 +104,12 @@ func main() {
 	if err != nil {
 		log.Fatalf("grpc listen: %v", err)
 	}
-	grpcServer := grpc.NewServer()
+	grpcServer := grpc.NewServer(grpc.MaxRecvMsgSize(16 << 20))
 	ingestv1.RegisterIngestServiceServer(grpcServer, grpcingest.NewServer(
 		restaurantSvc, menuSvc, offerSvc, observationSvc,
 	))
 	ingestv2.RegisterIngestServiceServer(grpcServer, grpcingestv2.NewServer(
-		channelSvc, ingestDomainSvc, sourceSvc, brandSvc, dishSvc, placeSvc, resolutionSvc, itemPriceSvc, quoteObsSvc,
+		channelSvc, ingestDomainSvc, sourceSvc, brandSvc, dishSvc, placeSvc, resolutionSvc, itemPriceSvc, quoteObsSvc, catalogSvc,
 	))
 	go func() {
 		log.Printf("grpc ingest listening on %s (v1 + v2)", grpcAddr)
@@ -118,6 +121,7 @@ func main() {
 	mux := http.NewServeMux()
 	health.Mount(mux, healthController)
 	compare.Mount(mux, compareController)
+	catalog.Mount(mux, catalogSvc)
 	httpServer := &http.Server{Addr: httpAddr, Handler: httpx.Wrap(mux)}
 	go func() {
 		log.Printf("http listening on %s", httpAddr)

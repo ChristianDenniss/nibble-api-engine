@@ -7,6 +7,7 @@ github.com/ChristianDenniss/go-data-model/brand/repository
 github.com/ChristianDenniss/go-data-model/brand/service
 github.com/ChristianDenniss/go-data-model/cart/entity
 github.com/ChristianDenniss/go-data-model/cart/repository
+github.com/ChristianDenniss/go-data-model/catalog
 github.com/ChristianDenniss/go-data-model/category/entity
 github.com/ChristianDenniss/go-data-model/category/repository
 github.com/ChristianDenniss/go-data-model/channel/entity

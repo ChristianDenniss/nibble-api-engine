@@ -4,6 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"github.com/ChristianDenniss/go-data-model/catalog"
+	"log"
 	"time"
 
 	brandentity "github.com/ChristianDenniss/go-data-model/brand/entity"
@@ -43,6 +45,7 @@ type Server struct {
 	resolution *resolutionsvc.Service
 	itemPrices *itempricesvc.Service
 	quotes     *quoteobssvc.Service
+	catalog    *catalog.Service
 }
 
 func NewServer(
@@ -55,8 +58,14 @@ func NewServer(
 	resolution *resolutionsvc.Service,
 	itemPrices *itempricesvc.Service,
 	quotes *quoteobssvc.Service,
+	catalogService ...*catalog.Service,
 ) *Server {
+	var catalogSvc *catalog.Service
+	if len(catalogService) > 0 {
+		catalogSvc = catalogService[0]
+	}
 	return &Server{
+		catalog:    catalogSvc,
 		channels:   channels,
 		ingest:     ingest,
 		source:     source,
@@ -140,6 +149,26 @@ func (s *Server) RecordSourceSnapshot(ctx context.Context, req *ingestv2.RecordS
 	snap := req.GetSnapshot()
 	if snap == nil {
 		return nil, mapError(ingestentity.ErrIDRequired)
+	}
+	if snap.GetContentType() == catalog.ContentType {
+		if s.catalog == nil {
+			return nil, status.Error(codes.Unavailable, "catalog ingestion unavailable")
+		}
+		if len(snap.GetRawJson()) > 16<<20 {
+			return nil, status.Error(codes.ResourceExhausted, "catalog too large")
+		}
+		var bundle catalog.Bundle
+		if err := json.Unmarshal(snap.GetRawJson(), &bundle); err != nil {
+			return nil, status.Error(codes.InvalidArgument, "invalid catalog JSON")
+		}
+		if err := bundle.Validate(); err != nil {
+			return nil, status.Error(codes.InvalidArgument, err.Error())
+		}
+		if err := s.catalog.Import(ctx, snap.GetRawJson()); err != nil {
+			log.Printf("catalog import: %v", err)
+			return nil, status.Error(codes.Internal, "catalog import failed")
+		}
+		return &ingestv2.RecordSourceSnapshotResponse{Id: snap.GetId()}, nil
 	}
 	err := s.ingest.RecordSnapshot(ctx, ingestentity.SourceSnapshot{
 		ID:              snap.GetId(),
@@ -236,7 +265,7 @@ func (s *Server) RecordItemPriceObservation(ctx context.Context, req *ingestv2.R
 	f, e := fulfillmententity.Canonicalize(obs.GetFulfillmentMode(), obs.GetDeliveryExecutor())
 	err := s.itemPrices.Record(ctx, itempriceentity.Observation{
 		ID: obs.GetId(), SourceItemID: obs.GetSourceItemId(), IngestRunID: obs.GetIngestRunId(),
-		Price: money.Money{AmountCents: price.GetAmountCents(), Currency: price.GetCurrency()},
+		Price:           money.Money{AmountCents: price.GetAmountCents(), Currency: price.GetCurrency()},
 		FulfillmentMode: f, DeliveryExecutor: e,
 		ObservedAt: time.UnixMilli(obs.GetObservedAtUnixMs()),
 	})
@@ -256,7 +285,7 @@ func (s *Server) RecordQuoteObservation(ctx context.Context, req *ingestv2.Recor
 		amt := fl.GetAmount()
 		feeLines = append(feeLines, quoteentity.FeeLine{
 			ID: fl.GetId(), Kind: fl.GetKind(),
-			Amount: money.Money{AmountCents: amt.GetAmountCents(), Currency: amt.GetCurrency()},
+			Amount:  money.Money{AmountCents: amt.GetAmountCents(), Currency: amt.GetCurrency()},
 			Percent: fl.GetPercent(), ThresholdCents: fl.GetThresholdCents(),
 		})
 	}
