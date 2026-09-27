@@ -17,7 +17,13 @@ const (
 	ExecutorMerchant   = "merchant"
 )
 
-const ChannelKindAggregator = "aggregator"
+const (
+	ChannelKindAggregator  = "aggregator"
+	ChannelKindMerchantApp = "merchant_app"
+	ChannelKindMerchantWeb = "merchant_web"
+	ChannelKindPhone       = "phone"
+	ChannelKindInPerson    = "in_person"
+)
 
 // Canonicalize splits legacy combined mode strings and merges with an explicit executor.
 func Canonicalize(fulfillmentMode, deliveryExecutor string) (fulfillment string, executor string) {

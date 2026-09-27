@@ -3,18 +3,24 @@ module github.com/ChristianDenniss/api-engine
 go 1.23
 
 require (
-	github.com/ChristianDenniss/go-data-model v1.4.0
-	github.com/ChristianDenniss/go-data-store v1.1.0
-	github.com/ChristianDenniss/platform-contracts v1.2.0
+	github.com/ChristianDenniss/go-data-model v1.8.1-0.20260927010316-73a593a8abe3
+	github.com/ChristianDenniss/go-data-store v1.5.1-0.20260927010320-f75dfbaef8e1
+	github.com/ChristianDenniss/platform-contracts v1.6.1-0.20260927010323-c47ac70f1f59
+	golang.org/x/crypto v0.31.0
 	google.golang.org/grpc v1.68.1
 )
+
+// Local workspace modules keep the API, promotion model, and SMS persistence
+// changes in lockstep during development.
+replace github.com/ChristianDenniss/go-data-model => ../nibble-go-data-model
+replace github.com/ChristianDenniss/go-data-store => ../nibble-go-data-store
+replace github.com/ChristianDenniss/platform-contracts => ../nibble-platform-contracts
 
 require (
 	github.com/jackc/pgpassfile v1.0.0 // indirect
 	github.com/jackc/pgservicefile v0.0.0-20240606120523-5a60cdf6a761 // indirect
 	github.com/jackc/pgx/v5 v5.7.2 // indirect
 	github.com/jackc/puddle/v2 v2.2.2 // indirect
-	golang.org/x/crypto v0.31.0 // indirect
 	golang.org/x/net v0.29.0 // indirect
 	golang.org/x/sync v0.10.0 // indirect
 	golang.org/x/sys v0.28.0 // indirect

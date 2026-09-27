@@ -9,6 +9,7 @@ import (
 type StoreRepository interface {
 	GetByID(ctx context.Context, id string) (entity.Store, error)
 	GetByChannelExternal(ctx context.Context, channelID, externalStoreID string) (entity.Store, error)
+	ListByChannel(ctx context.Context, channelID string) ([]entity.Store, error)
 	Upsert(ctx context.Context, store entity.Store) error
 }
 
@@ -28,4 +29,8 @@ type ItemRepository interface {
 	GetByID(ctx context.Context, id string) (entity.Item, error)
 	ListByCategory(ctx context.Context, sourceCategoryID string) ([]entity.Item, error)
 	Upsert(ctx context.Context, item entity.Item) error
+}
+
+type BrowseRepository interface {
+	LoadMenuBrowse(ctx context.Context, sourceStoreID, fulfillmentMode, deliveryExecutor string) (entity.MenuBrowse, error)
 }

@@ -1,20 +1,28 @@
-FROM golang:1.23-bookworm AS build
+# syntax=docker/dockerfile:1
+
+FROM golang:1.23-alpine AS build
 ARG GITHUB_TOKEN
 WORKDIR /src
-RUN apt-get update -qq && DEBIAN_FRONTEND=noninteractive apt-get install -y -qq git >/dev/null
+RUN apk add --no-cache git ca-certificates
 ENV GOPRIVATE=github.com/ChristianDenniss/*
 ENV GONOSUMDB=github.com/ChristianDenniss/*
 RUN if [ -n "$GITHUB_TOKEN" ]; then \
   git config --global url."https://x-access-token:${GITHUB_TOKEN}@github.com/".insteadOf "https://github.com/"; \
   fi
-COPY go.mod go.sum ./
-RUN go mod download
-COPY . .
-RUN CGO_ENABLED=0 go build -o /out/api-engine ./cmd/api-engine
+COPY nibble-api-engine/go.mod nibble-api-engine/go.sum ./
+COPY nibble-go-data-model /nibble-go-data-model
+COPY nibble-go-data-store /nibble-go-data-store
+COPY nibble-platform-contracts /nibble-platform-contracts
+RUN --mount=type=cache,target=/go/pkg/mod \
+  go mod download
+COPY nibble-api-engine/cmd cmd
+COPY nibble-api-engine/internal internal
+RUN --mount=type=cache,target=/go/pkg/mod \
+  --mount=type=cache,target=/root/.cache/go-build \
+  CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o /out/api-engine ./cmd/api-engine
 
-FROM debian:bookworm-slim
-RUN apt-get update -qq && DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends curl ca-certificates \
-  && rm -rf /var/lib/apt/lists/*
+FROM alpine:3.20
+RUN apk add --no-cache ca-certificates curl
 COPY --from=build /out/api-engine /usr/local/bin/api-engine
 EXPOSE 8080 9090
 HEALTHCHECK --interval=2s --timeout=3s --retries=20 --start-period=5s \

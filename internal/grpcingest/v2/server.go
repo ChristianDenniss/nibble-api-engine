@@ -20,9 +20,14 @@ import (
 	itempriceentity "github.com/ChristianDenniss/go-data-model/itemprice/entity"
 	itempricesvc "github.com/ChristianDenniss/go-data-model/itemprice/service"
 	location "github.com/ChristianDenniss/go-data-model/location/entity"
+	marketentity "github.com/ChristianDenniss/go-data-model/market/entity"
+	marketsvc "github.com/ChristianDenniss/go-data-model/market/service"
+	mediaentity "github.com/ChristianDenniss/go-data-model/media/entity"
 	money "github.com/ChristianDenniss/go-data-model/money/entity"
 	placeentity "github.com/ChristianDenniss/go-data-model/place/entity"
 	placesvc "github.com/ChristianDenniss/go-data-model/place/service"
+	promotionentity "github.com/ChristianDenniss/go-data-model/promotion/entity"
+	promotionsvc "github.com/ChristianDenniss/go-data-model/promotion/service"
 	quoteentity "github.com/ChristianDenniss/go-data-model/quoteobs/entity"
 	quoteobssvc "github.com/ChristianDenniss/go-data-model/quoteobs/service"
 	resolutionentity "github.com/ChristianDenniss/go-data-model/resolution/entity"
@@ -46,6 +51,8 @@ type Server struct {
 	itemPrices *itempricesvc.Service
 	quotes     *quoteobssvc.Service
 	catalog    *catalog.Service
+	markets    *marketsvc.Service
+	promos     *promotionsvc.Service
 }
 
 func NewServer(
@@ -58,6 +65,8 @@ func NewServer(
 	resolution *resolutionsvc.Service,
 	itemPrices *itempricesvc.Service,
 	quotes *quoteobssvc.Service,
+	markets *marketsvc.Service,
+	promos *promotionsvc.Service,
 	catalogService ...*catalog.Service,
 ) *Server {
 	var catalogSvc *catalog.Service
@@ -75,6 +84,8 @@ func NewServer(
 		resolution: resolution,
 		itemPrices: itemPrices,
 		quotes:     quotes,
+		markets:    markets,
+		promos:     promos,
 	}
 }
 
@@ -90,7 +101,12 @@ func mapError(err error) error {
 		errors.Is(err, placeentity.ErrIDRequired) ||
 		errors.Is(err, resolutionentity.ErrIDRequired) ||
 		errors.Is(err, brandentity.ErrIDRequired) ||
-		errors.Is(err, dishentity.ErrIDRequired) {
+		errors.Is(err, dishentity.ErrIDRequired) ||
+		errors.Is(err, marketentity.ErrIDRequired) ||
+		errors.Is(err, marketentity.ErrSlugRequired) ||
+		errors.Is(err, marketentity.ErrStatusInvalid) ||
+		errors.Is(err, promotionentity.ErrIDRequired) ||
+		errors.Is(err, mediaentity.ErrImageURLInvalid) {
 		return status.Error(codes.InvalidArgument, err.Error())
 	}
 	if errors.Is(err, channelentity.ErrNotFound) ||
@@ -101,7 +117,9 @@ func mapError(err error) error {
 		errors.Is(err, placeentity.ErrNotFound) ||
 		errors.Is(err, resolutionentity.ErrNotFound) ||
 		errors.Is(err, brandentity.ErrNotFound) ||
-		errors.Is(err, dishentity.ErrNotFound) {
+		errors.Is(err, dishentity.ErrNotFound) ||
+		errors.Is(err, marketentity.ErrNotFound) ||
+		errors.Is(err, promotionentity.ErrNotFound) {
 		return status.Error(codes.NotFound, err.Error())
 	}
 	return status.Errorf(codes.Internal, "%v", err)
@@ -249,6 +267,7 @@ func (s *Server) RecordSourceItem(ctx context.Context, req *ingestv2.RecordSourc
 		ID: it.GetId(), SourceCategoryID: it.GetSourceCategoryId(),
 		ExternalItemID: it.GetExternalItemId(), Name: it.GetName(),
 		Description: it.GetDescription(), Available: it.GetAvailable(),
+		ImageURL: it.GetImageUrl(),
 	})
 	if err != nil {
 		return nil, mapError(err)
@@ -402,4 +421,74 @@ func (s *Server) RecordDish(ctx context.Context, req *ingestv2.RecordDishRequest
 		return nil, mapError(err)
 	}
 	return &ingestv2.RecordDishResponse{Id: d.GetId()}, nil
+}
+
+func (s *Server) RecordMarket(ctx context.Context, req *ingestv2.RecordMarketRequest) (*ingestv2.RecordMarketResponse, error) {
+	m := req.GetMarket()
+	if m == nil {
+		return nil, mapError(marketentity.ErrIDRequired)
+	}
+	err := s.markets.RecordMarket(ctx, marketentity.Market{
+		ID: m.GetId(), Slug: m.GetSlug(), Name: m.GetName(), Country: m.GetCountry(),
+		Region: m.GetRegion(), Currency: m.GetCurrency(), Timezone: m.GetTimezone(),
+		Status: m.GetStatus(), GeohashPrefixes: m.GetGeohashPrefixes(),
+	})
+	if err != nil {
+		return nil, mapError(err)
+	}
+	return &ingestv2.RecordMarketResponse{Id: m.GetId()}, nil
+}
+
+func (s *Server) RecordProbeDropoff(ctx context.Context, req *ingestv2.RecordProbeDropoffRequest) (*ingestv2.RecordProbeDropoffResponse, error) {
+	d := req.GetDropoff()
+	if d == nil {
+		return nil, mapError(marketentity.ErrIDRequired)
+	}
+	loc := d.GetLocation()
+	err := s.markets.RecordProbeDropoff(ctx, marketentity.ProbeDropoff{
+		ID: d.GetId(), MarketID: d.GetMarketId(), Label: d.GetLabel(), Geohash: d.GetGeohash(),
+		Location: location.Location{
+			Latitude: loc.GetLatitude(), Longitude: loc.GetLongitude(), Address: loc.GetAddress(),
+			City: loc.GetCity(), Region: loc.GetRegion(), PostalCode: loc.GetPostalCode(),
+		},
+	})
+	if err != nil {
+		return nil, mapError(err)
+	}
+	return &ingestv2.RecordProbeDropoffResponse{Id: d.GetId()}, nil
+}
+
+func (s *Server) RecordChannelMarketCoverage(ctx context.Context, req *ingestv2.RecordChannelMarketCoverageRequest) (*ingestv2.RecordChannelMarketCoverageResponse, error) {
+	c := req.GetCoverage()
+	if c == nil {
+		return nil, mapError(marketentity.ErrIDRequired)
+	}
+	var observed *time.Time
+	if c.GetLastObservedAtUnixMs() != 0 {
+		t := time.UnixMilli(c.GetLastObservedAtUnixMs())
+		observed = &t
+	}
+	err := s.markets.RecordCoverage(ctx, marketentity.ChannelCoverage{
+		ID: c.GetId(), ChannelID: c.GetChannelId(), MarketID: c.GetMarketId(),
+		Status: c.GetStatus(), StoreCount: int(c.GetStoreCount()),
+		IngestRunID: c.GetIngestRunId(), Note: c.GetNote(), LastObservedAt: observed,
+	})
+	if err != nil {
+		return nil, mapError(err)
+	}
+	return &ingestv2.RecordChannelMarketCoverageResponse{Id: c.GetId()}, nil
+}
+
+func (s *Server) RecordMembershipProduct(ctx context.Context, req *ingestv2.RecordMembershipProductRequest) (*ingestv2.RecordMembershipProductResponse, error) {
+	p := req.GetProduct()
+	if p == nil {
+		return nil, mapError(promotionentity.ErrIDRequired)
+	}
+	err := s.promos.RecordMembershipProduct(ctx, promotionentity.MembershipProduct{
+		ID: p.GetId(), ChannelID: p.GetChannelId(), Name: p.GetName(), Slug: p.GetSlug(),
+	})
+	if err != nil {
+		return nil, mapError(err)
+	}
+	return &ingestv2.RecordMembershipProductResponse{Id: p.GetId()}, nil
 }

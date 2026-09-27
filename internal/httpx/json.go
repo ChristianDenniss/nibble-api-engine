@@ -16,6 +16,12 @@ func WriteJSON(w http.ResponseWriter, status int, body any) {
 	_ = json.NewEncoder(w).Encode(body)
 }
 
+// WriteFailure is the single response shape for controller-level failures.
+// Keeping this here prevents individual modules from inventing error payloads.
+func WriteFailure(w http.ResponseWriter, status int, message string) {
+	WriteJSON(w, status, map[string]string{"error": message})
+}
+
 func WritePlain(w http.ResponseWriter, status int, body string) {
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 	w.WriteHeader(status)

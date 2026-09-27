@@ -4,11 +4,11 @@ import (
 	"encoding/json"
 	"net/http"
 
+	"github.com/ChristianDenniss/api-engine/internal/httpx"
 	compareentity "github.com/ChristianDenniss/go-data-model/compare/entity"
 	comparesvc "github.com/ChristianDenniss/go-data-model/compare/service"
 	userentity "github.com/ChristianDenniss/go-data-model/user/entity"
 	usersvc "github.com/ChristianDenniss/go-data-model/user/service"
-	"github.com/ChristianDenniss/api-engine/internal/httpx"
 )
 
 type Controller struct {
@@ -21,19 +21,19 @@ func NewController(compare *comparesvc.Service, users *usersvc.Service) *Control
 }
 
 type compareRequestBody struct {
-	PlaceID            string                         `json:"place_id"`
+	PlaceID            string                           `json:"place_id"`
 	FulfillmentContext compareentity.FulfillmentContext `json:"fulfillment_context"`
-	Basket             compareentity.Basket           `json:"basket"`
-	Filters            userentity.ComparePrefs        `json:"filters"`
-	Memberships        []string                       `json:"memberships"`
-	QuotePreference    string                         `json:"quote_preference"`
-	UserID             string                         `json:"user_id"`
+	Basket             compareentity.Basket             `json:"basket"`
+	Filters            userentity.ComparePrefs          `json:"filters"`
+	Memberships        []string                         `json:"memberships"`
+	QuotePreference    string                           `json:"quote_preference"`
+	UserID             string                           `json:"user_id"`
 }
 
 func (c *Controller) PostCompare(w http.ResponseWriter, r *http.Request) {
 	var body compareRequestBody
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
-		httpx.WriteJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid json"})
+		httpx.WriteFailure(w, http.StatusBadRequest, "invalid json")
 		return
 	}
 	req := compareentity.Request{
@@ -46,7 +46,7 @@ func (c *Controller) PostCompare(w http.ResponseWriter, r *http.Request) {
 	}
 	result, session, err := c.compare.Compare(r.Context(), body.UserID, req)
 	if err != nil {
-		httpx.WriteJSON(w, http.StatusBadRequest, map[string]string{"error": err.Error()})
+		httpx.WriteFailure(w, http.StatusBadRequest, err.Error())
 		return
 	}
 	var payload map[string]interface{}
@@ -65,12 +65,12 @@ func (c *Controller) PostCompare(w http.ResponseWriter, r *http.Request) {
 func (c *Controller) GetSession(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
 	if id == "" {
-		httpx.WriteJSON(w, http.StatusBadRequest, map[string]string{"error": "id required"})
+		httpx.WriteFailure(w, http.StatusBadRequest, "id required")
 		return
 	}
 	session, err := c.users.GetSession(r.Context(), id)
 	if err != nil {
-		httpx.WriteJSON(w, http.StatusNotFound, map[string]string{"error": "session not found"})
+		httpx.WriteFailure(w, http.StatusNotFound, "session not found")
 		return
 	}
 	var result interface{}
