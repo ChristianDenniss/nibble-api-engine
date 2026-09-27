@@ -1,9 +1,9 @@
-github.com/ChristianDenniss/go-data-model v1.8.0 h1:F815v34Y4FHve4cZyaCoKzluap06cc8v6G/kddIuULg=
-github.com/ChristianDenniss/go-data-model v1.8.0/go.mod h1:D9AfdKTWYXijlISIB1EUqp6bq7+yKnEuopVYX564CHA=
-github.com/ChristianDenniss/go-data-store v1.5.0 h1:Q6g+oOajYGRBZeyzB+Nx/u6SVlZhaX7ubJQTkQKbbnE=
-github.com/ChristianDenniss/go-data-store v1.5.0/go.mod h1:47L2V2kl3wMbSkQtkFWQw0n94JO1MN2NwGcQx7G74Yw=
-github.com/ChristianDenniss/platform-contracts v1.6.0 h1:HTwkl1wfxEEsCEfxcCgsv8zjzWASkPWgSxsLoFiT7Lo=
-github.com/ChristianDenniss/platform-contracts v1.6.0/go.mod h1:5WdXIqN2S0rbAIedAH4UZe60AqXZ9kMbL9ASemPs3Gs=
+github.com/ChristianDenniss/go-data-model v1.8.1-0.20260927010316-73a593a8abe3 h1:UgwIAt4aj71l6GQvHI/QYUc5fdCNPfIYS/UFVcwL0R4=
+github.com/ChristianDenniss/go-data-model v1.8.1-0.20260927010316-73a593a8abe3/go.mod h1:D9AfdKTWYXijlISIB1EUqp6bq7+yKnEuopVYX564CHA=
+github.com/ChristianDenniss/go-data-store v1.5.1-0.20260927010320-f75dfbaef8e1 h1:H42F+O4ScwYLpfNf8XMJgVT1UM348qg3dsJYqxyfq5c=
+github.com/ChristianDenniss/go-data-store v1.5.1-0.20260927010320-f75dfbaef8e1/go.mod h1:47L2V2kl3wMbSkQtkFWQw0n94JO1MN2NwGcQx7G74Yw=
+github.com/ChristianDenniss/platform-contracts v1.6.1-0.20260927010323-c47ac70f1f59 h1:OeSoa1qkUltrFAFX5Ek9Da3a/QFrJnDPZz4J8t3lOIQ=
+github.com/ChristianDenniss/platform-contracts v1.6.1-0.20260927010323-c47ac70f1f59/go.mod h1:5WdXIqN2S0rbAIedAH4UZe60AqXZ9kMbL9ASemPs3Gs=
 github.com/davecgh/go-spew v1.1.0/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/davecgh/go-spew v1.1.1 h1:vj9j/u1bqnvCEfJOwUhtlOARqs3+rkHYY13jYWTU97c=
 github.com/davecgh/go-spew v1.1.1/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
