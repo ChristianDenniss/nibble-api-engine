@@ -87,6 +87,12 @@ func StoreID(provider, rawURL string) string {
 	}
 	part := strings.TrimRight(u.Path, "/")
 	part = part[strings.LastIndex(part, "/")+1:]
+	if provider == "SkipTheDishes" {
+		if !regexp.MustCompile(`^/(?:en/)?[a-z0-9]+(?:-[a-z0-9]+)*/?$`).MatchString(u.Path) {
+			return ""
+		}
+		return fmt.Sprintf("ss_skip_%x", sha256.Sum256([]byte(part)))[:32]
+	}
 	if provider == "Uber Eats" {
 		return fmt.Sprintf("ss_ubereats_%x", sha256.Sum256([]byte(part)))[:36]
 	}
@@ -97,11 +103,11 @@ func StoreID(provider, rawURL string) string {
 	return "ss_doordash_" + part
 }
 func (b Bundle) Validate() error {
-	if b.Version != 1 || len(b.Providers) == 0 || len(b.Providers) > 2 {
+	if b.Version != 1 || len(b.Providers) == 0 || len(b.Providers) > 3 {
 		return fmt.Errorf("invalid catalog version/providers")
 	}
 	for provider, snapshot := range b.Providers {
-		host := map[string]string{"Uber Eats": "www.ubereats.com", "DoorDash": "www.doordash.com"}[provider]
+		host := map[string]string{"Uber Eats": "www.ubereats.com", "DoorDash": "www.doordash.com", "SkipTheDishes": "www.skipthedishes.com"}[provider]
 		if host == "" || snapshot.City != "Fredericton" || snapshot.Region != "NB" || len(snapshot.Stores) == 0 {
 			return fmt.Errorf("invalid provider or city")
 		}
@@ -205,7 +211,7 @@ func Build(b Bundle) PublicCatalog {
 	}
 	result := PublicCatalog{City: "Fredericton", Restaurants: []*Restaurant{}}
 	restaurants := map[string]*Restaurant{}
-	for _, provider := range []string{"Uber Eats", "DoorDash"} {
+	for _, provider := range []string{"Uber Eats", "DoorDash", "SkipTheDishes"} {
 		for _, st := range b.Providers[provider].Stores {
 			canonical := st.ID
 			if m, ok := matches[st.ID]; ok && present[m.Canonical] {

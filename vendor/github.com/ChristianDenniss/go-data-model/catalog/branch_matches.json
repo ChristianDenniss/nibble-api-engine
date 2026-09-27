@@ -81,5 +81,10 @@
     "evidenceUrl": "https://www.doordash.com/store/wendys-fredericton-24492416/",
     "uberEvidenceUrl": "https://www.ubereats.com/ca/city/fredericton-nb",
     "evidence": "Reviewed matching brand, street address and postal code. DoorDash: 370 Main St, Fredericton, NB E3A 1E5, Canada; Uber Eats: 370 Main Street, Fredericton, NAMER E3A 1E5"
+  },
+  "ss_skip_5ef34bf83f44c4ca69672f3a": {
+    "canonicalStoreId": "ss_ubereats_0a5ba1d349096949787465cf",
+    "evidenceUrl": "https://www.skipthedishes.com/taco-boyz-520",
+    "evidence": "Reviewed Taco Boyz name and 520 Smythe St address on Skip against the existing Fredericton branch. Indexed page retrieved 2026-09-27; source crawl age 2 weeks."
   }
 }

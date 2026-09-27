@@ -5,6 +5,8 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"sort"
+	"strings"
 )
 
 var ErrInvalidCart = errors.New("invalid cart")
@@ -24,19 +26,21 @@ type CartComparison struct {
 	Providers      []ProviderCart `json:"providers"`
 }
 type ProviderCart struct {
-	Provider      string           `json:"provider"`
-	SourceURL     string           `json:"sourceUrl"`
-	Currency      string           `json:"currency"`
-	Lines         []PricedCartLine `json:"lines"`
-	Complete      bool             `json:"complete"`
-	StartingPrice bool             `json:"startingPrice"`
-	Subtotal      *int64           `json:"subtotalCents"`
-	KnownSubtotal int64            `json:"knownSubtotalCents"`
-	Delivery      *int64           `json:"deliveryCents"`
-	Service       *int64           `json:"serviceCents"`
-	Tax           *int64           `json:"taxCents"`
-	Total         *int64           `json:"totalCents"`
-	Promotions    []Promotion      `json:"promotions"`
+	LowestListedSubtotal bool             `json:"lowestListedSubtotal"`
+	HandoffMode          string           `json:"handoffMode"`
+	Provider             string           `json:"provider"`
+	SourceURL            string           `json:"sourceUrl"`
+	Currency             string           `json:"currency"`
+	Lines                []PricedCartLine `json:"lines"`
+	Complete             bool             `json:"complete"`
+	StartingPrice        bool             `json:"startingPrice"`
+	Subtotal             *int64           `json:"subtotalCents"`
+	KnownSubtotal        int64            `json:"knownSubtotalCents"`
+	Delivery             *int64           `json:"deliveryCents"`
+	Service              *int64           `json:"serviceCents"`
+	Tax                  *int64           `json:"taxCents"`
+	Total                *int64           `json:"totalCents"`
+	Promotions           []Promotion      `json:"promotions"`
 }
 type PricedCartLine struct {
 	ItemID    string `json:"itemId"`
@@ -103,7 +107,7 @@ func CompareCart(c PublicCatalog, req CartRequest) (CartComparison, error) {
 		}
 	}
 	for _, source := range restaurant.Sources {
-		p := ProviderCart{Provider: source.Provider, SourceURL: source.URL, Currency: "CAD", Complete: true, Lines: []PricedCartLine{}, Promotions: []Promotion{}}
+		p := ProviderCart{HandoffMode: "menu_link", Provider: source.Provider, SourceURL: source.URL, Currency: "CAD", Complete: true, Lines: []PricedCartLine{}, Promotions: []Promotion{}}
 		promos := map[string]bool{}
 		for _, line := range req.Lines {
 			item := items[line.ItemID]
@@ -147,5 +151,74 @@ func CompareCart(c PublicCatalog, req CartRequest) (CartComparison, error) {
 		}
 		result.Providers = append(result.Providers, p)
 	}
+	RankCarts(result.Providers)
 	return result, nil
+}
+
+// Rank only complete fixed-price item baskets. This never ranks delivered cost.
+func RankCarts(providers []ProviderCart) {
+	eligible := func(p ProviderCart) bool { return p.Complete && !p.StartingPrice && p.Subtotal != nil }
+	count := 0
+	var lowest int64
+	for i := range providers {
+		p := &providers[i]
+		p.LowestListedSubtotal = false
+		if eligible(*p) {
+			if count == 0 || *p.Subtotal < lowest {
+				lowest = *p.Subtotal
+			}
+			count++
+		}
+	}
+	if count > 1 {
+		for i := range providers {
+			p := &providers[i]
+			p.LowestListedSubtotal = eligible(*p) && *p.Subtotal == lowest
+		}
+	}
+	sort.SliceStable(providers, func(i, j int) bool {
+		a, b := providers[i], providers[j]
+		if eligible(a) != eligible(b) {
+			return eligible(a)
+		}
+		if eligible(a) && *a.Subtotal != *b.Subtotal {
+			return *a.Subtotal < *b.Subtotal
+		}
+		if a.Complete != b.Complete {
+			return a.Complete
+		}
+		return a.Provider < b.Provider
+	})
+}
+
+type HandoffRequest struct {
+	RestaurantID string     `json:"restaurantId"`
+	Lines        []CartLine `json:"lines"`
+	Provider     string     `json:"provider"`
+}
+type CartHandoff struct {
+	Provider        string `json:"provider"`
+	Mode            string `json:"mode"`
+	URL             string `json:"url"`
+	CartTransferred bool   `json:"cartTransferred"`
+	CartText        string `json:"cartText"`
+}
+
+// Public menu links cannot create authenticated consumer carts. This explicit
+// fallback preserves the basket and never claims an external cart was created.
+func (s *Service) PrepareHandoff(ctx context.Context, req HandoffRequest) (CartHandoff, error) {
+	c, err := s.CompareCart(ctx, CartRequest{RestaurantID: req.RestaurantID, Lines: req.Lines})
+	if err != nil {
+		return CartHandoff{}, err
+	}
+	for _, p := range c.Providers {
+		if p.Provider == req.Provider {
+			lines := []string{c.RestaurantName, c.Address}
+			for _, line := range p.Lines {
+				lines = append(lines, fmt.Sprintf("%d × %s", line.Quantity, line.Name))
+			}
+			return CartHandoff{Provider: p.Provider, Mode: "menu_link", URL: p.SourceURL, CartTransferred: false, CartText: strings.Join(lines, "\n")}, nil
+		}
+	}
+	return CartHandoff{}, fmt.Errorf("%w: provider is not linked to this restaurant", ErrInvalidCart)
 }

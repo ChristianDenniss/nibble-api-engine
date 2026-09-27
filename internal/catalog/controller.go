@@ -48,4 +48,31 @@ func Mount(mux *http.ServeMux, svc *catalog.Service) {
 		httpx.WriteJSON(w, 200, result)
 	})
 
+	mux.HandleFunc("POST /v1/catalog/cart-handoff", func(w http.ResponseWriter, r *http.Request) {
+		r.Body = http.MaxBytesReader(w, r.Body, 64<<10)
+		decoder := json.NewDecoder(r.Body)
+		decoder.DisallowUnknownFields()
+		var req catalog.HandoffRequest
+		if err := decoder.Decode(&req); err != nil {
+			httpx.WriteJSON(w, 400, map[string]string{"error": "Invalid handoff request"})
+			return
+		}
+		if err := decoder.Decode(new(any)); err != io.EOF {
+			httpx.WriteJSON(w, 400, map[string]string{"error": "Expected one handoff request"})
+			return
+		}
+		result, err := svc.PrepareHandoff(r.Context(), req)
+		if errors.Is(err, catalog.ErrInvalidCart) {
+			httpx.WriteJSON(w, 400, map[string]string{"error": err.Error()})
+			return
+		}
+		if err != nil {
+			log.Printf("cart handoff: %v", err)
+			httpx.WriteError(w, err)
+			return
+		}
+		w.Header().Set("Cache-Control", "no-store")
+		httpx.WriteJSON(w, 200, result)
+	})
+
 }

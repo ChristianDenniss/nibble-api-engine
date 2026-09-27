@@ -41,3 +41,29 @@ func TestCartComparisonHTTP(t *testing.T) {
 		}
 	}
 }
+
+func TestHandoffDoesNotPretendToCreateProviderCart(t *testing.T) {
+	mux := http.NewServeMux()
+	Mount(mux, domain.New(catalogRepo{}))
+	for _, provider := range []string{"Uber Eats", "SkipTheDishes"} {
+		w := httptest.NewRecorder()
+		body := `{"restaurantId":"catalog-test","provider":"` + provider + `","lines":[{"itemId":"Big Mac","quantity":2}]}`
+		mux.ServeHTTP(w, httptest.NewRequest("POST", "/v1/catalog/cart-handoff", strings.NewReader(body)))
+		if provider == "SkipTheDishes" {
+			if w.Code != 400 {
+				t.Fatal("unlinked provider accepted")
+			}
+			continue
+		}
+		if w.Code != 200 {
+			t.Fatal(w.Body.String())
+		}
+		var result domain.CartHandoff
+		if err := json.Unmarshal(w.Body.Bytes(), &result); err != nil {
+			t.Fatal(err)
+		}
+		if result.CartTransferred || result.Mode != "menu_link" || !strings.Contains(result.CartText, "2 × Big Mac") || result.URL != "https://www.ubereats.com/ca/store/test/test" {
+			t.Fatal("invalid handoff", result)
+		}
+	}
+}
