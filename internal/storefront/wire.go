@@ -46,7 +46,7 @@ func mergeCapturedCatalog(response *catalogResponse, captured catalogentity.Publ
 			appURL = capturedRestaurant.Sources[0].URL
 		}
 		response.Restaurants = append(response.Restaurants, restaurantWire{
-			ID: capturedRestaurant.ID, Name: capturedRestaurant.Name,
+			ID: capturedRestaurant.ID, Name: capturedRestaurant.Name, ImageURL: capturedRestaurant.Image,
 			Location:   locationWire{Address: capturedRestaurant.Address, City: captured.City, Region: "NB"},
 			CuisineIds: []string{}, CategoryIds: []string{"cat_food"},
 			Rating: ratingWire{Average: rating}, AppURL: appURL, Hours: []hoursWire{},
@@ -169,6 +169,7 @@ type ratingWire struct {
 type restaurantWire struct {
 	ID          string       `json:"id"`
 	Name        string       `json:"name"`
+	ImageURL    string       `json:"imageURL,omitempty"`
 	Location    locationWire `json:"location"`
 	CuisineIds  []string     `json:"cuisineIds"`
 	CategoryIds []string     `json:"categoryIds"`
@@ -344,7 +345,7 @@ func mapRestaurants(in []restaurantentity.Restaurant) []restaurantWire {
 	out := make([]restaurantWire, len(in))
 	for i, r := range in {
 		out[i] = restaurantWire{
-			ID: r.ID, Name: r.Name,
+			ID: r.ID, Name: r.Name, ImageURL: r.ImageURL,
 			Location:   locationFromDomain(r.Location),
 			CuisineIds: r.CuisineIDs, CategoryIds: r.CategoryIDs,
 			Rating: ratingWire{Average: r.Rating.Average, Count: r.Rating.Count},
