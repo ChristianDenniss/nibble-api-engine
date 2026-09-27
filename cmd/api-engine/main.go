@@ -10,23 +10,31 @@ import (
 	"syscall"
 
 	"github.com/ChristianDenniss/api-engine/internal/account"
+	"github.com/ChristianDenniss/api-engine/internal/auth"
 	"github.com/ChristianDenniss/api-engine/internal/compare"
 	"github.com/ChristianDenniss/api-engine/internal/grpcingest"
 	grpcingestv2 "github.com/ChristianDenniss/api-engine/internal/grpcingest/v2"
 	"github.com/ChristianDenniss/api-engine/internal/health"
+	"github.com/ChristianDenniss/api-engine/internal/home"
 	"github.com/ChristianDenniss/api-engine/internal/httpx"
+	"github.com/ChristianDenniss/api-engine/internal/serviceability"
 	"github.com/ChristianDenniss/api-engine/internal/sourcemenu"
 	"github.com/ChristianDenniss/api-engine/internal/sourcestores"
+	"github.com/ChristianDenniss/api-engine/internal/sponsored"
 	"github.com/ChristianDenniss/api-engine/internal/storefront"
 	accountsvc "github.com/ChristianDenniss/go-data-model/account/service"
+	authsvc "github.com/ChristianDenniss/go-data-model/auth/service"
 	brandsvc "github.com/ChristianDenniss/go-data-model/brand/service"
+	cartsvc "github.com/ChristianDenniss/go-data-model/cart/service"
 	channelsvc "github.com/ChristianDenniss/go-data-model/channel/service"
 	comparesvc "github.com/ChristianDenniss/go-data-model/compare/service"
 	dishsvc "github.com/ChristianDenniss/go-data-model/dish/service"
+	homesvc "github.com/ChristianDenniss/go-data-model/home/service"
 	ingestsvc "github.com/ChristianDenniss/go-data-model/ingest/service"
 	itempricesvc "github.com/ChristianDenniss/go-data-model/itemprice/service"
 	marketsvc "github.com/ChristianDenniss/go-data-model/market/service"
 	menusvc "github.com/ChristianDenniss/go-data-model/menu/service"
+	merchsvc "github.com/ChristianDenniss/go-data-model/merchandising/service"
 	obssvc "github.com/ChristianDenniss/go-data-model/observation/service"
 	offersvc "github.com/ChristianDenniss/go-data-model/offer/service"
 	placesvc "github.com/ChristianDenniss/go-data-model/place/service"
@@ -98,6 +106,7 @@ func main() {
 		postgres.NewSourceStoreStatusRepository(db),
 		postgres.NewServiceAreaRepository(db),
 	)
+	serviceabilityController := serviceability.NewController(serviceabilitySvc, postgres.NewRestaurantStorePathRepository(db))
 	userSvc := usersvc.New(
 		postgres.NewUserRepository(db),
 		postgres.NewUserSettingsRepository(db),
@@ -108,8 +117,17 @@ func main() {
 
 	healthController := health.NewController(health.NewService(db))
 	compareController := compare.NewController(compareSvc, userSvc)
-	storefrontController := storefront.NewController(storefrontsvc.New(postgres.NewStorefrontRepository(db)))
-	accountController := account.NewController(accountsvc.New(postgres.NewAccountRepository(db)))
+	storefrontSvc := storefrontsvc.New(postgres.NewStorefrontRepository(db))
+	cartSvc := cartsvc.New(postgres.NewCartRepository(db))
+	merchSvc := merchsvc.New(postgres.NewMerchandisingRepository(db))
+	storefrontController := storefront.NewController(storefrontSvc, cartSvc, postgres.NewOutboundClickRepository(db))
+	homeController := home.NewController(homesvc.New(storefrontSvc, promoSvc, merchSvc))
+	sponsoredController := sponsored.NewController(merchSvc)
+	accountSvc := accountsvc.New(postgres.NewAccountRepository(db))
+	accountController := account.NewController(accountSvc)
+	authConfig := auth.ConfigFromEnv()
+	authSvc := authsvc.New(postgres.NewAuthRepository(db), auth.BcryptHasher{})
+	authController := auth.NewController(authSvc, accountSvc, authConfig)
 	sourceMenuController := sourcemenu.NewController(sourceSvc)
 	sourceStoresController := sourcestores.NewController(sourceSvc)
 	log.Printf("domains: legacy ingest + target catalog/pricing/compare wired")
@@ -136,10 +154,15 @@ func main() {
 	health.Mount(mux, healthController)
 	compare.Mount(mux, compareController)
 	storefront.Mount(mux, storefrontController)
+	storefront.MountMenuItems(mux, storefront.NewMenuItemController(menuSvc))
+	home.Mount(mux, homeController)
+	sponsored.Mount(mux, sponsoredController)
 	account.Mount(mux, accountController)
+	serviceability.Mount(mux, serviceabilityController)
+	auth.Mount(mux, authController)
 	sourcemenu.Mount(mux, sourceMenuController)
 	sourcestores.Mount(mux, sourceStoresController)
-	httpServer := &http.Server{Addr: httpAddr, Handler: httpx.Wrap(mux)}
+	httpServer := &http.Server{Addr: httpAddr, Handler: httpx.Wrap(auth.Middleware(authSvc, authConfig)(mux))}
 	go func() {
 		log.Printf("http listening on %s", httpAddr)
 		if err := httpServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {

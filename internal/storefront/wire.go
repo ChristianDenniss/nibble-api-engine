@@ -99,6 +99,16 @@ type restaurantWire struct {
 	CuisineIds  []string     `json:"cuisineIds"`
 	CategoryIds []string     `json:"categoryIds"`
 	Rating      ratingWire   `json:"rating"`
+	Phone       string       `json:"phone"`
+	AppURL      string       `json:"appURL"`
+	Hours       []hoursWire  `json:"hours"`
+}
+
+type hoursWire struct {
+	Service   string `json:"service"`
+	DayOfWeek int    `json:"dayOfWeek"`
+	Opens     string `json:"opens"`
+	Closes    string `json:"closes"`
 }
 
 type itemWire struct {
@@ -107,6 +117,7 @@ type itemWire struct {
 	Name         string `json:"name"`
 	Description  string `json:"description"`
 	Section      string `json:"section"`
+	ImageURL     string `json:"imageURL"`
 }
 
 type offerWire struct {
@@ -221,7 +232,17 @@ func mapRestaurants(in []restaurantentity.Restaurant) []restaurantWire {
 			Location: locationFromDomain(r.Location),
 			CuisineIds: r.CuisineIDs, CategoryIds: r.CategoryIDs,
 			Rating: ratingWire{Average: r.Rating.Average, Count: r.Rating.Count},
+			Phone: r.Phone, AppURL: r.AppURL,
+			Hours: mapHours(r.Hours),
 		}
+	}
+	return out
+}
+
+func mapHours(in []restaurantentity.Hours) []hoursWire {
+	out := make([]hoursWire, len(in))
+	for i, h := range in {
+		out[i] = hoursWire{Service: h.Service, DayOfWeek: h.DayOfWeek, Opens: h.Opens, Closes: h.Closes}
 	}
 	return out
 }
@@ -229,12 +250,17 @@ func mapRestaurants(in []restaurantentity.Restaurant) []restaurantWire {
 func mapItems(in []menuentity.Item) []itemWire {
 	out := make([]itemWire, len(in))
 	for i, item := range in {
-		out[i] = itemWire{
-			ID: item.ID, RestaurantID: item.RestaurantID,
-			Name: item.Name, Description: item.Description, Section: item.Section,
-		}
+		out[i] = toItemWire(item)
 	}
 	return out
+}
+
+func toItemWire(item menuentity.Item) itemWire {
+	return itemWire{
+		ID: item.ID, RestaurantID: item.RestaurantID,
+		Name: item.Name, Description: item.Description, Section: item.Section,
+		ImageURL: item.ImageURL,
+	}
 }
 
 func mapOffers(in []offerentity.Offer) []offerWire {

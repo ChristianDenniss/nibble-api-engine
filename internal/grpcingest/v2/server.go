@@ -20,6 +20,7 @@ import (
 	location "github.com/ChristianDenniss/go-data-model/location/entity"
 	marketentity "github.com/ChristianDenniss/go-data-model/market/entity"
 	marketsvc "github.com/ChristianDenniss/go-data-model/market/service"
+	mediaentity "github.com/ChristianDenniss/go-data-model/media/entity"
 	money "github.com/ChristianDenniss/go-data-model/money/entity"
 	placeentity "github.com/ChristianDenniss/go-data-model/place/entity"
 	placesvc "github.com/ChristianDenniss/go-data-model/place/service"
@@ -95,7 +96,8 @@ func mapError(err error) error {
 		errors.Is(err, marketentity.ErrIDRequired) ||
 		errors.Is(err, marketentity.ErrSlugRequired) ||
 		errors.Is(err, marketentity.ErrStatusInvalid) ||
-		errors.Is(err, promotionentity.ErrIDRequired) {
+		errors.Is(err, promotionentity.ErrIDRequired) ||
+		errors.Is(err, mediaentity.ErrImageURLInvalid) {
 		return status.Error(codes.InvalidArgument, err.Error())
 	}
 	if errors.Is(err, channelentity.ErrNotFound) ||
@@ -236,6 +238,7 @@ func (s *Server) RecordSourceItem(ctx context.Context, req *ingestv2.RecordSourc
 		ID: it.GetId(), SourceCategoryID: it.GetSourceCategoryId(),
 		ExternalItemID: it.GetExternalItemId(), Name: it.GetName(),
 		Description: it.GetDescription(), Available: it.GetAvailable(),
+		ImageURL: it.GetImageUrl(),
 	})
 	if err != nil {
 		return nil, mapError(err)

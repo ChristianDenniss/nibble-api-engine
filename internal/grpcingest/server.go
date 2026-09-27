@@ -6,6 +6,7 @@ import (
 	"time"
 
 	location "github.com/ChristianDenniss/go-data-model/location/entity"
+	mediaentity "github.com/ChristianDenniss/go-data-model/media/entity"
 	menuentity "github.com/ChristianDenniss/go-data-model/menu/entity"
 	menusvc "github.com/ChristianDenniss/go-data-model/menu/service"
 	money "github.com/ChristianDenniss/go-data-model/money/entity"
@@ -48,6 +49,7 @@ func mapError(err error) error {
 	}
 	if errors.Is(err, restaurantentity.ErrIDRequired) ||
 		errors.Is(err, menuentity.ErrIDRequired) ||
+		errors.Is(err, mediaentity.ErrImageURLInvalid) ||
 		errors.Is(err, offerentity.ErrIDRequired) ||
 		errors.Is(err, obsentity.ErrIDRequired) {
 		return status.Error(codes.InvalidArgument, err.Error())
@@ -91,6 +93,7 @@ func (s *Server) RecordMenuItem(ctx context.Context, req *ingestv1.RecordMenuIte
 		ID:           item.GetId(),
 		RestaurantID: item.GetRestaurantId(),
 		Name:         item.GetName(),
+		ImageURL:     item.GetImageUrl(),
 	})
 	if err != nil {
 		return nil, mapError(err)

@@ -42,6 +42,7 @@ type menuItemWire struct {
 	Name             string    `json:"name"`
 	Description      string    `json:"description"`
 	Available        bool      `json:"available"`
+	ImageURL         string    `json:"imageURL"`
 	Price            moneyWire `json:"price"`
 }
 
@@ -69,6 +70,7 @@ func toMenuBrowseResponse(b sourceentity.MenuBrowse) menuBrowseResponse {
 			items[j] = menuItemWire{
 				ID: it.Item.ID, SourceCategoryID: it.Item.SourceCategoryID, ExternalItemID: it.Item.ExternalItemID,
 				Name: it.Item.Name, Description: it.Item.Description, Available: it.Item.Available,
+				ImageURL: it.Item.ImageURL,
 				Price: moneyWire{AmountCents: it.PriceCents, Currency: it.Currency},
 			}
 		}

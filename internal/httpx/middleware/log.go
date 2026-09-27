@@ -21,6 +21,6 @@ func RequestLog(next http.Handler) http.Handler {
 		start := time.Now()
 		sw := &statusWriter{ResponseWriter: w, status: http.StatusOK}
 		next.ServeHTTP(sw, r)
-		log.Printf("http %s %s -> %d (%s)", r.Method, r.URL.RequestURI(), sw.status, time.Since(start))
+		log.Printf("http request_id=%s method=%s path=%s status=%d duration=%s", RequestIDFromContext(r.Context()), r.Method, r.URL.RequestURI(), sw.status, time.Since(start))
 	})
 }
